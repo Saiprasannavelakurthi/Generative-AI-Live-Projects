@@ -1,0 +1,13 @@
+# Environment
+.env
+
+# Python
+__pycache__/
+*.pyc
+
+# PyCharm
+.idea/
+
+# Generated files
+generated/
+generated_ui/
