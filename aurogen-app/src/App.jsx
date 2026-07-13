@@ -6,7 +6,7 @@ import TelemetryReadout from './components/TelemetryReadout';
 
 export default function App() {
   const telemetry = useMouseTelemetry({
-    wsUrl: 'wss://echo.websocket.events',
+    wsUrl:  "wss://echo.websocket.org/",
     batchIntervalMs: 500,
   });
 
