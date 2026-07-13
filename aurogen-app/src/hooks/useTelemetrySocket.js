@@ -88,11 +88,25 @@ export function useTelemetrySocket(options = {}) {
     if (config.wsUrl) connect();
     flushIntervalRef.current = setInterval(flush, config.batchIntervalMs);
 
-    return () => {
-      clearInterval(flushIntervalRef.current);
-      clearTimeout(reconnectTimeoutRef.current);
-      if (wsRef.current) wsRef.current.close();
-    };
+   return () => {
+    clearInterval(flushIntervalRef.current);
+    clearTimeout(reconnectTimeoutRef.current);
+
+  const ws = wsRef.current;
+
+  if (ws) {
+    ws.onopen = null;
+    ws.onclose = null;
+    ws.onerror = null;
+
+    if (
+      ws.readyState === WebSocket.OPEN ||
+      ws.readyState === WebSocket.CONNECTING
+    ) {
+      ws.close();
+    }
+  }
+  };
   }, [connect, flush, config.wsUrl, config.batchIntervalMs]);
 
   return { status, enqueue, flush };
