@@ -1,0 +1,13 @@
+{
+  "framework":"React",
+
+  "styling":"Tailwind CSS",
+
+  "theme":"Modern",
+
+  "buttonClass":"bg-blue-600 text-white rounded-lg px-4 py-2",
+
+  "inputClass":"border rounded-lg p-2 w-full",
+
+  "containerClass":"max-w-md mx-auto p-5"
+}
