@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback, useContext, useReducer, useLayoutEffect } from 'react';
 import { loadBabel, compileComponent } from '../utils/babelLoader';
 import RenderBoundary from './RenderBoundary';
 import StatusBadge from './StatusBadge';
@@ -33,7 +33,7 @@ export default function DynamicCodeRenderer({
   const [renderKey, setRenderKey] = useState(0);
   const pollRef = useRef(null);
 
-  const memoScope = useMemo(() => ({ React, ...scope }), [scope]);
+  const memoScope = useMemo(() => ({ React, useState, useEffect, useMemo, useRef, useCallback, useContext, useReducer, useLayoutEffect, ...scope }), [scope]);
 
   const downloadCode = async () => {
     if (!sourceUrl) return rawCode;
