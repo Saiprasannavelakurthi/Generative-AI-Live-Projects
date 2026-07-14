@@ -18,7 +18,7 @@ export default function App() {
       </header>
 
       <DynamicCodeRenderer
-        sourceUrl="https://your-code-host.example.com/latest-component.jsx"
+        sourceUrl="http://localhost:5173/CodeEditorPanel.jsx"
         pollIntervalMs={5000}
         scope={{ telemetry }}
         className="mx-auto max-w-3xl"
