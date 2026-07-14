@@ -1,13 +1,7 @@
-import os
 import re
 
 from prompt import prompt_template
 from services.groq_service import groq_service
-
-GENERATED_FOLDER = "generated"
-
-os.makedirs(GENERATED_FOLDER, exist_ok=True)
-
 
 class ReactGenerator:
 
@@ -30,17 +24,6 @@ class ReactGenerator:
 
         if filename == "":
             filename = "Component"
-
-        filename += ".jsx"
-
-        filepath = os.path.join(
-            GENERATED_FOLDER,
-            filename
-        )
-
-        # Save JSX file
-        with open(filepath, "w", encoding="utf-8") as file:
-            file.write(jsx_code)
 
         return {
             "filename": filename,

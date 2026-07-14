@@ -49,11 +49,14 @@ def generate_ui(request: GenerateUIRequest):
             )
 
         # Save generated component
-        save_component(filename, generated_code)
+        saved_filename = save_component(
+            filename,
+            generated_code
+        )
 
         # Return API response
         return GenerateUIResponse(
-            filename=filename,
+            filename=saved_filename,
             generated_code=generated_code
         )
 

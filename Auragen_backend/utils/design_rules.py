@@ -1,5 +1,3 @@
-# backend/utils/design_rules.py
-
 DESIGN_RULES = """
 ===============================
 AuraGen Design System

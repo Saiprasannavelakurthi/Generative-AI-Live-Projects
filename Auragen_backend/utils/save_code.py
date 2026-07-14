@@ -1,4 +1,6 @@
 import os
+from datetime import datetime
+
 
 def save_component(filename, code):
     """
@@ -6,16 +8,24 @@ def save_component(filename, code):
     inside the generated_ui folder.
     """
 
-    folder = "generated_ui"
+    folder = "generated"
 
     # Create folder if it doesn't exist
     os.makedirs(folder, exist_ok=True)
 
-    filepath = os.path.join(folder, f"{filename}.jsx")
+    # Generate timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    filename = filename.replace(" ", "")
+
+    # Create unique filename
+    unique_filename = f"{filename}_{timestamp}.jsx"
+
+    filepath = os.path.join(folder, unique_filename)
 
     with open(filepath, "w", encoding="utf-8") as file:
         file.write(code)
 
-    return filepath
+    return unique_filename
 
 print("✅ Saving component")
