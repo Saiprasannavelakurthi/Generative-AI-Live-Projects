@@ -19,7 +19,7 @@ export default function App() {
 
       <DynamicCodeRenderer
         sourceUrl="/latest-component.jsx"
-        pollIntervalMs={5000}
+        pollIntervalMs={0}
         scope={{ telemetry }}
         className="mx-auto max-w-3xl"
       />
