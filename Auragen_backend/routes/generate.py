@@ -24,6 +24,13 @@ def generate_ui(request: GenerateUIRequest):
 
     try:
 
+        # Check empty prompt
+        if not request.prompt.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="Prompt cannot be empty"
+            )
+
         # Generate React component
         result = generator.generate_component(
             request.prompt
