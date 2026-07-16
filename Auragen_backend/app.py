@@ -1,5 +1,9 @@
+from generator import generator
 from fastapi import FastAPI
+from fastapi import WebSocket, WebSocketDisconnect
+from websocket_manager import manager
 from fastapi.middleware.cors import CORSMiddleware
+from services.cognitive_engine import cognitive_engine
 
 from routes.generate import router as generate_router
 
@@ -36,3 +40,66 @@ def health():
     return {
         "status": "Healthy"
     }
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+
+    await manager.connect(websocket)
+
+    print("Frontend Connected")
+
+    try:
+        while True:
+
+            data = await websocket.receive_json()
+
+            print("Received:", data)
+
+            if data.get("type") == "telemetry_batch":
+
+                result = cognitive_engine.calculate_score(
+                    data.get("events", [])
+                )
+
+                print("Cognitive Result:", result)
+
+                await manager.send_json(
+                    websocket,
+                    {
+                        "type": "cognitive_score",
+                        "score": result["score"],
+                        "high_load": result["high_load"]
+                    }
+                )
+
+                if result["high_load"]:
+
+                    prompt = "Create a modern login page"
+
+                    generated = generator.generate_component(prompt)
+
+                    print("Generated:", generated["filename"])
+
+                    await manager.send_json(
+                        websocket,
+                        {
+                            "type": "generated_component",
+                            "filename": generated["filename"],
+                            "code": generated["generated_code"]
+                        }
+                    )
+
+            else:
+
+                await manager.send_json(
+                    websocket,
+                    {
+                        "status": "received"
+                    }
+                )
+
+    except WebSocketDisconnect:
+
+        manager.disconnect(websocket)
+
+        print("Disconnected")
