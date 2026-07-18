@@ -8,7 +8,7 @@ def save_component(filename, code):
     inside the generated_ui folder.
     """
 
-    folder = "generated"
+    folder = "generated_UI"
 
     # Create folder if it doesn't exist
     os.makedirs(folder, exist_ok=True)

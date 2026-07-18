@@ -8,6 +8,7 @@ from models import (
 from generator import generator
 
 from utils.validator import validate_component
+from utils.security_validator import validate_security
 from utils.save_code import save_component
 
 router = APIRouter(
@@ -48,6 +49,13 @@ def generate_ui(request: GenerateUIRequest):
                 detail=message
             )
 
+        safe, message = validate_security(generated_code)
+
+        if not safe:
+            raise HTTPException(
+                status_code=400,
+                detail=message
+            )
         # Save generated component
         saved_filename = save_component(
             filename,
@@ -60,8 +68,10 @@ def generate_ui(request: GenerateUIRequest):
             generated_code=generated_code
         )
 
-    except Exception as e:
+    except HTTPException:
+        raise
 
+    except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=str(e)

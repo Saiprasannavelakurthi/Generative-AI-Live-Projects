@@ -18,9 +18,7 @@ class GroqService:
             return response.content
 
         except Exception as e:
-            return {
-                "error": str(e)
-            }
+            raise Exception(f"Groq API Error: {str(e)}")
 
 
 # Singleton instance

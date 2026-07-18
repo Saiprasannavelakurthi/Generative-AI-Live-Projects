@@ -19,5 +19,23 @@ def validate_component(code):
     if "```" in code:
         return False, "Error: Remove markdown formatting."
 
+    # Check for export default
+    if "export default" not in code:
+        return False, "Missing export default."
+
+    # Check for return statement
+    if "return" not in code:
+        return False, "Missing return statement."
+
+    # Check balanced curly braces
+    if code.count("{") != code.count("}"):
+        return False, "Unbalanced braces."
+
+    # Check balanced parentheses
+    if code.count("(") != code.count(")"):
+        return False, "Unbalanced parentheses."
+
     return True, "React component is valid."
-print("✅ Validator is running")
+
+if __name__ == "__main__":
+    print("✅ Validator is running")
