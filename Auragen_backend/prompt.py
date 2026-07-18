@@ -20,6 +20,14 @@ STRICT RULES:
 8. Keep components production-ready.
 9. Follow AuraGen Design Rules exactly.
 10. Generate clean, readable, reusable code.
+11. Never use eval().
+12. Never use dangerouslySetInnerHTML.
+13. Never use document.write().
+14. Never use new Function().
+15. Never access window.location.
+16. Never generate malicious or unsafe JavaScript.
+17. Always include export default.
+18. Return only JSX code without any extra text.
 """
 
 USER_PROMPT = """
