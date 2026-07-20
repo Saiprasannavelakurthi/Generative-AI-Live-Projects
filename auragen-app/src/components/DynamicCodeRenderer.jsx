@@ -85,6 +85,17 @@ export default function DynamicCodeRenderer({
   };
 
   const build = async (codeOverride) => {
+    const pendingSource = codeOverride ?? (sourceUrl ? undefined : rawCode);
+
+    // Nothing to compile yet (e.g. the websocket hasn't sent a
+    // generated component yet). Stay idle instead of throwing a
+    // spurious compile error on mount.
+    if (!sourceUrl && (!pendingSource || !pendingSource.trim())) {
+      setStatus("idle");
+      setErrorMessage(null);
+      return;
+    }
+
     setStatus("loading");
     setErrorMessage(null);
 

@@ -35,11 +35,42 @@ export function loadBabel() {
   return babelLoadPromise;
 }
 
-export function compileComponent(sourceCode, Babel, scope = {}) {
-  console.log("========== RAW JSX ==========");
-  console.log(sourceCode);
+/**
+ * Defensive cleanup: LLM-generated code sometimes arrives wrapped in
+ * markdown fences or containing import/export statements even when the
+ * backend is supposed to strip them. `new Function(...)` is not a module
+ * context, so `import`/`export` there is a SyntaxError, and stray
+ * backticks silently swallow the real code into unused template
+ * literals (which is what produced the `"" is not a function` error).
+ * This makes the frontend robust even if the backend ever regresses.
+ */
+function sanitizeSource(sourceCode) {
+  if (!sourceCode) return sourceCode;
 
-  const transformed = Babel.transform(sourceCode, {
+  let code = sourceCode.trim();
+
+  // Strip ```jsx / ```javascript / ``` fences
+  code = code.replace(/^```[a-zA-Z]*\s*\n?/, "");
+  code = code.replace(/\n?```\s*$/, "");
+  code = code.trim();
+
+  // Drop import statements (React & hooks come from scope)
+  code = code.replace(/^\s*import\s+.*?;?\s*$/gm, "");
+
+  // Strip `export default` / `export` but keep the declaration itself
+  code = code.replace(/^\s*export\s+default\s+/gm, "");
+  code = code.replace(/^\s*export\s+/gm, "");
+
+  return code.trim();
+}
+
+export function compileComponent(sourceCode, Babel, scope = {}) {
+  const cleaned = sanitizeSource(sourceCode);
+
+  console.log("========== RAW JSX ==========");
+  console.log(cleaned);
+
+  const transformed = Babel.transform(cleaned, {
     presets: ["react"],
     filename: "dynamic-component.jsx",
   }).code;
