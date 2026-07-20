@@ -1,6 +1,6 @@
 class CognitiveEngine:
     def __init__(self):
-        self.threshold = 70
+        self.threshold = 3
 
     def calculate_score(self, events):
         """

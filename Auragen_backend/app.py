@@ -4,6 +4,8 @@ from fastapi import WebSocket, WebSocketDisconnect
 from websocket_manager import manager
 from fastapi.middleware.cors import CORSMiddleware
 from services.cognitive_engine import cognitive_engine
+from services.decision_engine import decision_engine
+from services.prompt_builder import prompt_builder
 
 from routes.generate import router as generate_router
 
@@ -62,6 +64,13 @@ async def websocket_endpoint(websocket: WebSocket):
                 )
 
                 print("Cognitive Result:", result)
+                ui_type = decision_engine.decide_ui(result["score"])
+
+                print("Selected UI:", ui_type)
+
+                prompt = prompt_builder.build_prompt(ui_type)
+
+                print("Prompt:", prompt)
 
                 await manager.send_json(
                     websocket,
@@ -72,13 +81,12 @@ async def websocket_endpoint(websocket: WebSocket):
                     }
                 )
 
-                if result["high_load"]:
-
-                    prompt = "Create a modern login page"
+                if True:
 
                     generated = generator.generate_component(prompt)
 
                     print("Generated:", generated["filename"])
+                    print(generated["generated_code"])
 
                     await manager.send_json(
                         websocket,

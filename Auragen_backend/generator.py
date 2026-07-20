@@ -14,6 +14,10 @@ class ReactGenerator:
 
         jsx_code = groq_service.generate(messages)
 
+        print("\n========== GENERATED JSX ==========")
+        print(jsx_code)
+        print("==================================\n")
+
         # Create filename
         filename = (
             re.sub(r'[^A-Za-z0-9]', '', user_prompt.title())

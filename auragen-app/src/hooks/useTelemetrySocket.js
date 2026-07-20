@@ -26,6 +26,7 @@ export function useTelemetrySocket(options = {}) {
 
   const [status, setStatus] = useState("idle");
   const [backendMessage, setBackendMessage] = useState(null);
+  const [generatedCode, setGeneratedCode] = useState("");
 
   const wsRef = useRef(null);
   const bufferRef = useRef([]);
@@ -113,7 +114,7 @@ export function useTelemetrySocket(options = {}) {
     };
 
     ws.onerror = (err) => {
-      console.error(err);
+      console.error("WebSocket Error:", err);
       setStatus("error");
     };
 
@@ -124,7 +125,9 @@ export function useTelemetrySocket(options = {}) {
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
 
-      console.log("Backend Message:", message);
+      console.log("========== BACKEND MESSAGE ==========");
+      console.log(message);
+      console.log("=====================================");
 
       setBackendMessage(message);
 
@@ -133,8 +136,13 @@ export function useTelemetrySocket(options = {}) {
       }
 
       if (message.type === "generated_component") {
-        console.log("Generated Component:", message.filename);
+        console.log("========== GENERATED CODE RECEIVED ==========");
         console.log(message.code);
+        console.log("============================================");
+
+        setGeneratedCode(message.code);
+
+        console.log("State Updated with Generated Code");
       }
     };
   }, [config.wsUrl, config.reconnect, scheduleReconnect]);
@@ -176,6 +184,7 @@ export function useTelemetrySocket(options = {}) {
     enqueue,
     flush,
     backendMessage,
+    generatedCode,
   };
 }
 
