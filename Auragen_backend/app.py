@@ -76,18 +76,38 @@ async def websocket_endpoint(websocket: WebSocket):
 
                     prompt = "Create a modern login page"
 
-                    generated = generator.generate_component(prompt)
+                    try:
+                        generated = generator.generate_component(prompt)
 
+<<<<<<< Updated upstream
                     print("Generated:", generated["filename"])
+=======
+                        print("Generated:", generated["filename"])
+                        print(generated["generated_code"])
+>>>>>>> Stashed changes
 
-                    await manager.send_json(
-                        websocket,
-                        {
-                            "type": "generated_component",
-                            "filename": generated["filename"],
-                            "code": generated["generated_code"]
-                        }
-                    )
+                        await manager.send_json(
+                            websocket,
+                            {
+                                "type": "generated_component",
+                                "filename": generated["filename"],
+                                "code": generated["generated_code"]
+                            }
+                        )
+
+                    except Exception as gen_error:
+                        # Don't let a failed generation (rate limit, network
+                        # error, etc.) crash the socket loop or leave the
+                        # frontend hanging with no response.
+                        print("Generation failed:", str(gen_error))
+
+                        await manager.send_json(
+                            websocket,
+                            {
+                                "type": "generation_error",
+                                "message": str(gen_error)
+                            }
+                        )
 
             else:
 

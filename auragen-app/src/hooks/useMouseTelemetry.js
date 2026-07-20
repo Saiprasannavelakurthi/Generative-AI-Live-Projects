@@ -14,7 +14,11 @@ import { useClickPatterns } from './useClickPatterns';
  * telemetry -> { x, y, velocity, isHesitating, lastClick, clickCount, connectionStatus, flushNow }
  */
 export function useMouseTelemetry(options = {}) {
+<<<<<<< Updated upstream
   const { status, enqueue, flush } = useTelemetrySocket(options);
+=======
+  const { status, enqueue, flush, generatedCode, generationError } = useTelemetrySocket(options);
+>>>>>>> Stashed changes
 
   // Clicks are meaningful, low-frequency events — ship them immediately
   // instead of waiting for the next batch tick.
@@ -38,6 +42,11 @@ export function useMouseTelemetry(options = {}) {
     clickCount: clicks.clickCount,
     connectionStatus: status,
     flushNow: flush,
+<<<<<<< Updated upstream
+=======
+    generatedCode,
+    generationError,
+>>>>>>> Stashed changes
   };
 }
 

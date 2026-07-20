@@ -20,7 +20,12 @@ import CodeEditorPanel from './CodeEditorPanel';
  */
 export default function DynamicCodeRenderer({
   sourceUrl = null,
+<<<<<<< Updated upstream
   code: initialCode = '',
+=======
+  code: initialCode = "",
+  backendError = null,
+>>>>>>> Stashed changes
   pollIntervalMs = 0,
   scope = {},
   className = '',
@@ -42,8 +47,31 @@ export default function DynamicCodeRenderer({
     return res.text();
   };
 
+  // Surface backend generation failures (e.g. Groq rate limit) directly,
+  // instead of letting an empty/missing code string fall through to Babel
+  // and produce a confusing "Component was not created" error.
+  useEffect(() => {
+    if (backendError) {
+      setStatus("error");
+      setErrorMessage(`Backend generation failed: ${backendError}`);
+    }
+  }, [backendError]);
+
   const build = async (codeOverride) => {
+<<<<<<< Updated upstream
     setStatus('loading');
+=======
+    // Nothing to compile yet (e.g. no successful generation has arrived).
+    // Stay idle rather than throwing a misleading Babel error.
+    const pending = codeOverride ?? (sourceUrl ? null : rawCode);
+    if (!sourceUrl && !pending?.trim()) {
+      setStatus("idle");
+      setErrorMessage(null);
+      return;
+    }
+
+    setStatus("loading");
+>>>>>>> Stashed changes
     setErrorMessage(null);
     try {
       const source = codeOverride ?? (sourceUrl ? await downloadCode() : rawCode);
@@ -85,7 +113,16 @@ export default function DynamicCodeRenderer({
         </button>
       </div>
 
+<<<<<<< Updated upstream
       {status === 'error' && <ErrorPanel title="Compilation failed" message={errorMessage} />}
+=======
+      {status === "error" && (
+        <ErrorPanel
+          title={backendError ? "Generation failed" : "Compilation failed"}
+          message={errorMessage}
+        />
+      )}
+>>>>>>> Stashed changes
 
       <div className="rounded-lg border border-slate-200 p-4">
         {status === 'ready' && CompiledComponent ? (

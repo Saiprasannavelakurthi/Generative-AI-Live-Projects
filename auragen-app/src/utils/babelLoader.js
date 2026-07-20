@@ -37,9 +37,25 @@ export function loadBabel() {
  * sandboxed <iframe> instead of the host page.
  */
 export function compileComponent(sourceCode, Babel, scope = {}) {
+<<<<<<< Updated upstream
   const transformed = Babel.transform(sourceCode, {
     presets: ['react', 'env'],
     filename: 'dynamic-component.jsx',
+=======
+  console.log("========== RAW JSX ==========");
+  console.log(sourceCode);
+
+  // Defense-in-depth: strip stray markdown code fences in case any
+  // slipped through backend sanitization (e.g. ```jsx ... ```).
+  const cleanedSource = sourceCode
+    .replace(/^```[a-zA-Z]*\s*\n?/, "")
+    .replace(/\n?```\s*$/, "")
+    .trim();
+
+  const transformed = Babel.transform(cleanedSource, {
+    presets: ["react"],
+    filename: "dynamic-component.jsx",
+>>>>>>> Stashed changes
   }).code;
 
   const scopeKeys = Object.keys(scope);

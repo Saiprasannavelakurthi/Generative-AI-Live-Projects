@@ -10,6 +10,16 @@ export default function App() {
     batchIntervalMs: 500,
   });
 
+<<<<<<< Updated upstream
+=======
+  const { generatedCode, generationError } = telemetry;
+
+  // ===== DEBUG =====
+  console.log("App generatedCode:");
+  console.log(generatedCode);
+  console.log("===================");
+
+>>>>>>> Stashed changes
   return (
     <div className="min-h-screen bg-slate-100 p-6">
       <header className="mb-6 flex items-center justify-between">
@@ -18,7 +28,12 @@ export default function App() {
       </header>
 
       <DynamicCodeRenderer
+<<<<<<< Updated upstream
         sourceUrl="/latest-component.jsx"
+=======
+        code={generatedCode}
+        backendError={generationError}
+>>>>>>> Stashed changes
         pollIntervalMs={0}
         scope={{ telemetry }}
         className="mx-auto max-w-3xl"

@@ -26,6 +26,11 @@ export function useTelemetrySocket(options = {}) {
 
   const [status, setStatus] = useState("idle");
   const [backendMessage, setBackendMessage] = useState(null);
+<<<<<<< Updated upstream
+=======
+  const [generatedCode, setGeneratedCode] = useState("");
+  const [generationError, setGenerationError] = useState(null);
+>>>>>>> Stashed changes
 
   const wsRef = useRef(null);
   const bufferRef = useRef([]);
@@ -135,6 +140,20 @@ export function useTelemetrySocket(options = {}) {
       if (message.type === "generated_component") {
         console.log("Generated Component:", message.filename);
         console.log(message.code);
+<<<<<<< Updated upstream
+=======
+        console.log("============================================");
+
+        setGenerationError(null);
+        setGeneratedCode(message.code);
+
+        console.log("State Updated with Generated Code");
+>>>>>>> Stashed changes
+      }
+
+      if (message.type === "generation_error") {
+        console.error("Generation failed on backend:", message.message);
+        setGenerationError(message.message);
       }
     };
   }, [config.wsUrl, config.reconnect, scheduleReconnect]);
@@ -176,6 +195,11 @@ export function useTelemetrySocket(options = {}) {
     enqueue,
     flush,
     backendMessage,
+<<<<<<< Updated upstream
+=======
+    generatedCode,
+    generationError,
+>>>>>>> Stashed changes
   };
 }
 
