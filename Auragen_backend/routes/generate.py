@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-
+from fastapi.responses import JSONResponse
 from models import (
     GenerateUIRequest,
     GenerateUIResponse
@@ -44,9 +44,13 @@ def generate_ui(request: GenerateUIRequest):
         status, message = validate_component(generated_code)
 
         if not status:
-            raise HTTPException(
+            return JSONResponse(
                 status_code=400,
-                detail=message
+                content={
+                    "success": False,
+                    "error": "Component Validation Failed",
+                    "reason": message
+                }
             )
 
         safe, message = validate_security(generated_code)
