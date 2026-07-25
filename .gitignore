@@ -1,0 +1,15 @@
+# IDE
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+babel_parser/node_modules/
+
+# Environment
+.env
+
+Auragen_backend/generated_UI/
