@@ -1,3 +1,4 @@
+from typing import Any
 from pydantic import BaseModel, Field
 
 
@@ -13,6 +14,15 @@ class GenerateUIRequest(BaseModel):
         description="Describe the React component to generate."
     )
 
+    dom_state: str | None = Field(
+        default=None,
+        description="Current DOM structure of the UI."
+    )
+
+    form_data: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Existing form values that must be preserved."
+    )
 
 class GenerateUIResponse(BaseModel):
     """

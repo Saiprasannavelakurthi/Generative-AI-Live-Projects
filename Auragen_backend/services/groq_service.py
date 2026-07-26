@@ -20,6 +20,14 @@ class GroqService:
         except Exception as e:
             raise Exception(f"Groq API Error: {str(e)}")
 
+    def stream_generate(self, messages):
+
+        for chunk in self.llm.stream(messages):
+
+            content = chunk.content
+
+            if content:
+                yield content
 
 # Singleton instance
 groq_service = GroqService()
