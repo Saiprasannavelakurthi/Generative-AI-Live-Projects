@@ -1,5 +1,4 @@
-MAX_DOM_LENGTH = 20_000
-
+from config import MAX_DOM_LENGTH
 
 def prepare_dom_context(dom_state: str | None) -> str:
 

@@ -11,7 +11,7 @@ GENERAL RULES
 4. Do NOT explain anything.
 5. Do NOT use inline CSS.
 6. Use Tailwind CSS only.
-7. Export component as default.
+7. Do NOT include export statements.
 8. Make components responsive.
 9. Keep code production ready.
 

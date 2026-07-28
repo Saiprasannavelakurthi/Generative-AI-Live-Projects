@@ -21,3 +21,11 @@ MODEL_NAME = os.getenv(
 client = Groq(
     api_key=GROQ_API_KEY
 )
+
+CACHE_TTL = int(
+    os.getenv("CACHE_TTL", "300")
+)
+
+MAX_DOM_LENGTH = int(
+    os.getenv("MAX_DOM_LENGTH", "20000")
+)

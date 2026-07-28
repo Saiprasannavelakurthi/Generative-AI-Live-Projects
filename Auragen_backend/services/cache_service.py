@@ -2,8 +2,8 @@ import hashlib
 import json
 import time
 
+from config import CACHE_TTL
 
-CACHE_TTL = 300
 _cache = {}
 
 

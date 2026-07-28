@@ -5,17 +5,17 @@ from services.cache_service import (
 )
 
 
-def test_cache():
+def test_cache_save_and_get():
 
     key = create_cache_key(
-        "Create login",
+        "Create login form",
         "<form></form>",
-        {"email": "abc@test.com"}
+        {"email": "test@example.com"}
     )
 
     value = {
-        "filename": "Login",
-        "generated_code": "test"
+        "filename": "Login.jsx",
+        "generated_code": "test-code"
     }
 
     set_cached(key, value)
@@ -25,18 +25,71 @@ def test_cache():
     assert result == value
 
 
-def test_same_input_same_key():
+def test_same_input_same_cache_key():
 
     key1 = create_cache_key(
-        "Login",
-        "DOM",
-        {"name": "A"}
+        "Create login",
+        "<form></form>",
+        {"name": "John"}
     )
 
     key2 = create_cache_key(
-        "Login",
-        "DOM",
-        {"name": "A"}
+        "Create login",
+        "<form></form>",
+        {"name": "John"}
     )
 
     assert key1 == key2
+
+
+def test_different_prompt_different_key():
+
+    key1 = create_cache_key(
+        "Create login",
+        "<form></form>",
+        {}
+    )
+
+    key2 = create_cache_key(
+        "Create dashboard",
+        "<form></form>",
+        {}
+    )
+
+    assert key1 != key2
+
+def test_form_data_changes_cache_key():
+
+    key1 = create_cache_key(
+        "Simplify form",
+        "<form></form>",
+        {
+            "name": "John"
+        }
+    )
+
+    key2 = create_cache_key(
+        "Simplify form",
+        "<form></form>",
+        {
+            "name": "David"
+        }
+    )
+
+    assert key1 != key2
+
+def test_dom_changes_cache_key():
+
+    key1 = create_cache_key(
+        "Simplify form",
+        "<form><input /></form>",
+        {}
+    )
+
+    key2 = create_cache_key(
+        "Simplify form",
+        "<form><button /></form>",
+        {}
+    )
+
+    assert key1 != key2
