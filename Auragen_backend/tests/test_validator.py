@@ -10,21 +10,37 @@ def test_empty():
 def test_markdown():
 
     code = """```jsx
-const A=()=>{}
+const Component = () => <div>Hello</div>;
 ```"""
 
     valid, message = validate_component(code)
 
     assert valid is False
 
-def test_no_export():
+
+def test_valid_component():
 
     code = """
-const Login=()=>{
+const Component = () => (
+    <div className="p-4">
+        Hello
+    </div>
+);
+"""
 
-return <div>Hello</div>
+    valid, message = validate_component(code)
 
-}
+    assert valid is True
+
+
+def test_export_rejected():
+
+    code = """
+const Component = () => (
+    <div>Hello</div>
+);
+
+export default Component;
 """
 
     valid, message = validate_component(code)

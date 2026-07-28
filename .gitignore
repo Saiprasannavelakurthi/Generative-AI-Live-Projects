@@ -1,15 +1,23 @@
-# IDE
-.idea/
+# Environment
+.env
 
 # Python
 __pycache__/
 *.pyc
+.pytest_cache/
+
+# PyCharm
+.idea/
 
 # Node
 node_modules/
-babel_parser/node_modules/
 
-# Environment
-.env
+# Generated UI
+generated_UI/
 
-Auragen_backend/generated_UI/
+# Logs
+logs/
+*.log
+
+# Temporary files
+test_request.json
