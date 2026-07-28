@@ -1,29 +1,34 @@
 /**
  * babelLoader
  * -----------
- * Lazy-loads Babel standalone from a CDN and compiles a raw source string
- * into a component function. Pure logic, no React/JSX here so it can be
- * unit-tested or swapped out independently of the rendering shell.
- *
- * Contract: the source must assign the root component to a top-level
- * identifier named `Component`, e.g.
- *   const Component = () => <div>hello</div>;
+ * Loads Babel Standalone and compiles JSX into a React Component.
  */
 
-const BABEL_SRC = 'https://unpkg.com/@babel/standalone@7.24.7/babel.min.js';
+const BABEL_SRC =
+  "https://unpkg.com/@babel/standalone@7.24.7/babel.min.js";
 
 let babelLoadPromise = null;
 
 export function loadBabel() {
-  if (typeof window !== 'undefined' && window.Babel) return Promise.resolve(window.Babel);
-  if (babelLoadPromise) return babelLoadPromise;
+  if (typeof window !== "undefined" && window.Babel) {
+    return Promise.resolve(window.Babel);
+  }
+
+  if (babelLoadPromise) {
+    return babelLoadPromise;
+  }
 
   babelLoadPromise = new Promise((resolve, reject) => {
-    const script = document.createElement('script');
+    const script = document.createElement("script");
+
     script.src = BABEL_SRC;
     script.async = true;
+
     script.onload = () => resolve(window.Babel);
-    script.onerror = () => reject(new Error('Failed to load Babel standalone from CDN'));
+
+    script.onerror = () =>
+      reject(new Error("Failed to load Babel Standalone"));
+
     document.head.appendChild(script);
   });
 
@@ -31,47 +36,71 @@ export function loadBabel() {
 }
 
 /**
- * SECURITY NOTE: this evaluates arbitrary JS with `new Function`, the
- * same trust model as any in-browser code playground. Only compile code
- * you control or trust; for user-submitted code, run this inside a
- * sandboxed <iframe> instead of the host page.
+ * Defensive cleanup: LLM-generated code sometimes arrives wrapped in
+ * markdown fences or containing import/export statements even when the
+ * backend is supposed to strip them. `new Function(...)` is not a module
+ * context, so `import`/`export` there is a SyntaxError, and stray
+ * backticks silently swallow the real code into unused template
+ * literals (which is what produced the `"" is not a function` error).
+ * This makes the frontend robust even if the backend ever regresses.
  */
+function sanitizeSource(sourceCode) {
+  if (!sourceCode) return sourceCode;
+
+  let code = sourceCode.trim();
+
+  // Strip ```jsx / ```javascript / ``` fences
+  code = code.replace(/^```[a-zA-Z]*\s*\n?/, "");
+  code = code.replace(/\n?```\s*$/, "");
+  code = code.trim();
+
+  // Drop import statements (React & hooks come from scope)
+  code = code.replace(/^\s*import\s+.*?;?\s*$/gm, "");
+
+  // Strip `export default` / `export` but keep the declaration itself
+  code = code.replace(/^\s*export\s+default\s+/gm, "");
+  code = code.replace(/^\s*export\s+/gm, "");
+
+  return code.trim();
+}
+
 export function compileComponent(sourceCode, Babel, scope = {}) {
-<<<<<<< Updated upstream
-  const transformed = Babel.transform(sourceCode, {
-    presets: ['react', 'env'],
-    filename: 'dynamic-component.jsx',
-=======
+  const cleaned = sanitizeSource(sourceCode);
+
   console.log("========== RAW JSX ==========");
-  console.log(sourceCode);
+  console.log(cleaned);
 
-  // Defense-in-depth: strip stray markdown code fences in case any
-  // slipped through backend sanitization (e.g. ```jsx ... ```).
-  const cleanedSource = sourceCode
-    .replace(/^```[a-zA-Z]*\s*\n?/, "")
-    .replace(/\n?```\s*$/, "")
-    .trim();
-
-  const transformed = Babel.transform(cleanedSource, {
+  const transformed = Babel.transform(cleaned, {
     presets: ["react"],
     filename: "dynamic-component.jsx",
->>>>>>> Stashed changes
   }).code;
 
+  console.log("========== TRANSFORMED ==========");
+  console.log(transformed);
+
   const scopeKeys = Object.keys(scope);
-  const scopeValues = scopeKeys.map((k) => scope[k]);
+  const scopeValues = Object.values(scope);
 
-  // eslint-disable-next-line no-new-func
-  const factory = new Function(
-    ...scopeKeys,
-    `${transformed}\n;return typeof Component !== 'undefined' ? Component : undefined;`
-  );
+  const wrappedCode = `
+${transformed}
 
-  const CompiledComponent = factory(...scopeValues);
-  if (!CompiledComponent) {
-    throw new Error(
-      'Compiled code did not define a `Component` identifier. Assign your root component to `Component`.'
+if (typeof Component === "undefined") {
+    throw new Error("Component was not created after Babel transform.");
+}
+
+return Component;
+`;
+
+  try {
+    const factory = new Function(
+      ...scopeKeys,
+      wrappedCode
     );
+
+    return factory(...scopeValues);
+  } catch (err) {
+    console.error("========== COMPILE ERROR ==========");
+    console.error(err);
+    throw err;
   }
-  return CompiledComponent;
 }
