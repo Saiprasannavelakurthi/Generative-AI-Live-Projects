@@ -1,11 +1,10 @@
 class CognitiveEngine:
+
     def __init__(self):
-        self.threshold = 3
+        # Cognitive load range: 0 - 100
+        self.threshold = 60
 
     def calculate_score(self, events):
-        """
-        Calculate cognitive load score from telemetry events.
-        """
 
         velocity_score = 0
         acceleration_score = 0
@@ -14,20 +13,35 @@ class CognitiveEngine:
 
         for event in events:
 
-            if event.get("type") == "move":
+            event_type = event.get("type")
+
+            # Mouse movement
+            if event_type == "move":
 
                 velocity = event.get("velocity", 0)
-                acceleration = abs(event.get("acceleration", 0))
-                hesitation = event.get("hesitation", False)
+                acceleration = abs(
+                    event.get("acceleration", 0)
+                )
 
-                velocity_score += min(velocity / 5, 25)
-                acceleration_score += min(acceleration / 20, 25)
+                velocity_score += min(
+                    velocity / 5,
+                    25
+                )
 
-                if hesitation:
-                    hesitation_score += 15
+                acceleration_score += min(
+                    acceleration / 20,
+                    25
+                )
 
-            elif event.get("type") == "click":
+            # User clicks
+            elif event_type == "click":
+
                 click_score += 5
+
+            # User hesitation
+            elif event_type == "hesitation":
+
+                hesitation_score += 15
 
         score = (
             velocity_score
@@ -36,6 +50,7 @@ class CognitiveEngine:
             + hesitation_score
         )
 
+        # Keep score between 0 and 100
         score = min(score, 100)
 
         return {
