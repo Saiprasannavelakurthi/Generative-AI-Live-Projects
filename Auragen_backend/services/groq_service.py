@@ -1,4 +1,7 @@
+import time
+
 from langchain_groq import ChatGroq
+
 from config import GROQ_API_KEY, MODEL_NAME
 from utils.logger import logger
 
@@ -16,19 +19,42 @@ class GroqService:
 
     def generate(self, messages):
 
+        if not messages:
+            raise ValueError("Messages cannot be empty.")
+
+        start_time = time.perf_counter()
+
         try:
+
             response = self.llm.invoke(messages)
+
+            elapsed = round(
+                time.perf_counter() - start_time,
+                2
+            )
+
+            logger.info(
+                f"Groq response generated in {elapsed} sec."
+            )
+
             return response.content
 
         except Exception as e:
 
-            logger.exception("Groq generation failed")
+            logger.exception(
+                "Groq generation failed."
+            )
 
             raise Exception(
                 f"Groq API Error: {str(e)}"
             )
 
     def stream_generate(self, messages):
+
+        if not messages:
+            raise ValueError("Messages cannot be empty.")
+
+        start_time = time.perf_counter()
 
         try:
 
@@ -37,10 +63,19 @@ class GroqService:
                 if chunk.content:
                     yield chunk.content
 
+            elapsed = round(
+                time.perf_counter() - start_time,
+                2
+            )
+
+            logger.info(
+                f"Groq streaming completed in {elapsed} sec."
+            )
+
         except Exception as e:
 
             logger.exception(
-                "Groq streaming failed"
+                "Groq streaming failed."
             )
 
             raise Exception(

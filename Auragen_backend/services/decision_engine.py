@@ -1,3 +1,6 @@
+from utils.logger import logger
+
+
 class DecisionEngine:
 
     def decide_ui(
@@ -13,89 +16,107 @@ class DecisionEngine:
         the user's cognitive load and current context.
         """
 
+        page = page_name.strip().lower()
+        field = active_field.strip().lower()
+        action = user_action.strip().lower()
+
+        score = max(0.0, min(score, 10.0))
+
+        decision = "minimal_ui"
+
         # ============================
         # Login Page
         # ============================
 
-        if page_name.lower() == "login":
+        if page == "login":
 
             if score < 3:
-                return "simple_login"
+                decision = "simple_login"
 
             elif score < 6:
-                return "login_dashboard"
+                decision = "login_dashboard"
 
             else:
-                return "minimal_login"
+                decision = "minimal_login"
 
         # ============================
         # Dashboard
         # ============================
 
-        elif page_name.lower() == "dashboard":
+        elif page == "dashboard":
 
             if score < 3:
-                return "rich_dashboard"
+                decision = "rich_dashboard"
 
             elif score < 6:
-                return "dashboard"
+                decision = "dashboard"
 
             else:
-                return "minimal_dashboard"
+                decision = "minimal_dashboard"
 
         # ============================
         # Loan Form
         # ============================
 
-        elif page_name.lower() == "loan":
+        elif page == "loan":
 
-            if active_field.lower() == "salary":
-                return "loan_salary_helper"
+            if field == "salary":
+                decision = "loan_salary_helper"
 
-            elif active_field.lower() == "income":
-                return "loan_income_helper"
+            elif field == "income":
+                decision = "loan_income_helper"
 
             elif score > 6:
-                return "minimal_loan_form"
+                decision = "minimal_loan_form"
 
             else:
-                return "loan_form"
+                decision = "loan_form"
 
         # ============================
         # Registration
         # ============================
 
-        elif page_name.lower() == "register":
+        elif page == "register":
 
             if score > 6:
-                return "minimal_registration"
-
-            return "registration_form"
+                decision = "minimal_registration"
+            else:
+                decision = "registration_form"
 
         # ============================
         # User Behaviour
         # ============================
 
-        if user_action.lower() == "scrolling":
-            return "compact_layout"
+        elif action == "scrolling":
+            decision = "compact_layout"
 
-        if user_action.lower() == "typing":
-            return current_component or "form_layout"
+        elif action == "typing":
+            decision = current_component or "form_layout"
 
-        if user_action.lower() == "clicking":
-            return current_component or "interactive_layout"
+        elif action == "clicking":
+            decision = current_component or "interactive_layout"
 
         # ============================
         # Default
         # ============================
 
-        if score < 3:
-            return "simple_ui"
+        else:
 
-        elif score < 6:
-            return "dashboard"
+            if score < 3:
+                decision = "simple_ui"
 
-        return "minimal_ui"
+            elif score < 6:
+                decision = "dashboard"
+
+            else:
+                decision = "minimal_ui"
+
+        logger.info(
+            f"DecisionEngine selected '{decision}' "
+            f"(page={page}, score={score}, action={action})"
+        )
+
+        return decision
 
 
 decision_engine = DecisionEngine()

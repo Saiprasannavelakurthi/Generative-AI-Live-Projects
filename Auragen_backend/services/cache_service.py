@@ -3,8 +3,38 @@ import json
 import time
 
 from config import CACHE_TTL
+from utils.logger import logger
 
 _cache = {}
+
+_cache_hits = 0
+_cache_misses = 0
+
+
+def cleanup_expired_cache():
+    """
+    Remove expired cache entries.
+    """
+
+    current_time = time.time()
+
+    expired = [
+
+        key
+
+        for key, value in _cache.items()
+
+        if current_time - value["created"] > CACHE_TTL
+
+    ]
+
+    for key in expired:
+        _cache.pop(key, None)
+
+    if expired:
+        logger.info(
+            f"Removed {len(expired)} expired cache entries."
+        )
 
 
 def create_cache_key(
@@ -18,30 +48,19 @@ def create_cache_key(
     cognitive_score: float = 0.0,
     user_action: str = ""
 ):
-    """
-    Create a unique cache key using all Week 3 context.
-    """
 
     payload = {
 
         "prompt": prompt,
-
         "dom_state": dom_state,
-
         "form_data": form_data,
-
-        # Week 3 Context
         "session_id": session_id,
-
         "page_name": page_name,
-
         "current_component": current_component,
-
         "active_field": active_field,
-
         "cognitive_score": cognitive_score,
-
         "user_action": user_action
+
     }
 
     raw = json.dumps(
@@ -55,26 +74,30 @@ def create_cache_key(
 
 
 def get_cached(key: str):
-    """
-    Return cached value if it is still valid.
-    """
+
+    global _cache_hits
+    global _cache_misses
+
+    cleanup_expired_cache()
 
     item = _cache.get(key)
 
     if not item:
+
+        _cache_misses += 1
+
+        logger.info("Cache MISS")
+
         return None
 
-    if time.time() - item["created"] > CACHE_TTL:
-        _cache.pop(key, None)
-        return None
+    _cache_hits += 1
+
+    logger.info("Cache HIT")
 
     return item["value"]
 
 
 def set_cached(key: str, value):
-    """
-    Store generated UI in cache.
-    """
 
     _cache[key] = {
 
@@ -84,18 +107,34 @@ def set_cached(key: str, value):
 
     }
 
+    logger.info("Response cached successfully.")
+
 
 def clear_cache():
-    """
-    Remove every cached item.
-    """
 
     _cache.clear()
 
+    logger.info("Cache cleared.")
+
 
 def cache_size():
-    """
-    Return number of cached entries.
-    """
+
+    cleanup_expired_cache()
 
     return len(_cache)
+
+
+def cache_stats():
+    """
+    Return cache statistics.
+    """
+
+    return {
+
+        "entries": cache_size(),
+
+        "hits": _cache_hits,
+
+        "misses": _cache_misses
+
+    }
