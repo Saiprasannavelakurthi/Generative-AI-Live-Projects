@@ -2,10 +2,10 @@ class DecisionEngine:
 
     def decide_ui(self, score):
 
-        if score < 3:
+        if score < 30:
             return "simple_login"
 
-        elif score < 6:
+        elif score < 60:
             return "dashboard"
 
         else:
