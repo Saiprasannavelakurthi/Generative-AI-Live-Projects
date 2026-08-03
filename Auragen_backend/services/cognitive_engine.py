@@ -24,24 +24,24 @@ class CognitiveEngine:
                 )
 
                 velocity_score += min(
-                    velocity / 5,
-                    25
+                    velocity * 1.5,
+                    30
                 )
 
                 acceleration_score += min(
-                    acceleration / 20,
-                    25
+                    acceleration * 2,
+                    30
                 )
 
             # User clicks
             elif event_type == "click":
 
-                click_score += 5
+                click_score += 10
 
             # User hesitation
             elif event_type == "hesitation":
 
-                hesitation_score += 15
+                hesitation_score += 20
 
         score = (
             velocity_score
@@ -51,7 +51,7 @@ class CognitiveEngine:
         )
 
         # Keep score between 0 and 100
-        score = min(score, 100)
+        score = max(0, min(score, 100))
 
         return {
             "score": round(score, 2),

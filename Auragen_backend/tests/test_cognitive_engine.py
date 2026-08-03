@@ -11,7 +11,7 @@ def test_normal_activity():
 
     result = cognitive_engine.calculate_score(events)
 
-    assert result["score"] == 5
+    assert result["score"] == 10
     assert result["high_load"] is False
 
 
@@ -26,7 +26,7 @@ def test_hesitation():
 
     result = cognitive_engine.calculate_score(events)
 
-    assert result["score"] == 15
+    assert result["score"] == 20
 
 
 def test_high_cognitive_load():
@@ -40,5 +40,5 @@ def test_high_cognitive_load():
 
     result = cognitive_engine.calculate_score(events)
 
-    assert result["score"] == 60
+    assert result["score"] == 80
     assert result["high_load"] is True
