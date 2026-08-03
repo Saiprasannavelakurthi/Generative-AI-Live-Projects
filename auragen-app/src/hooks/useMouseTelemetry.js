@@ -14,10 +14,8 @@ import { useClickPatterns } from './useClickPatterns';
  * telemetry -> { x, y, velocity, isHesitating, lastClick, clickCount, connectionStatus, flushNow }
  */
 export function useMouseTelemetry(options = {}) {
-  const { status, enqueue, flush, generatedCode } = useTelemetrySocket(options);
+  const { status, enqueue, flush, generatedCode, cognitiveScore } = useTelemetrySocket(options);
 
-  // Clicks are meaningful, low-frequency events — ship them immediately
-  // instead of waiting for the next batch tick.
   const handleEvent = useCallback(
     (event) => {
       enqueue(event);
@@ -39,6 +37,7 @@ export function useMouseTelemetry(options = {}) {
     connectionStatus: status,
     flushNow: flush,
     generatedCode,
+    cognitiveScore,
   };
 }
 

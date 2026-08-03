@@ -27,6 +27,9 @@ export function useTelemetrySocket(options = {}) {
   const [status, setStatus] = useState("idle");
   const [backendMessage, setBackendMessage] = useState(null);
   const [generatedCode, setGeneratedCode] = useState("");
+  const [cognitiveScore, setCognitiveScore] = useState(null);
+  const [highLoad, setHighLoad] = useState(false);
+
 
   const wsRef = useRef(null);
   const bufferRef = useRef([]);
@@ -132,7 +135,8 @@ export function useTelemetrySocket(options = {}) {
       setBackendMessage(message);
 
       if (message.type === "cognitive_score") {
-        console.log("Score:", message.score);
+        setCognitiveScore(message.score);
+        setHighLoad(!!message.high_load);
       }
 
       if (message.type === "generated_component") {
@@ -185,6 +189,8 @@ export function useTelemetrySocket(options = {}) {
     flush,
     backendMessage,
     generatedCode,
+    cognitiveScore,
+    highLoad,
   };
 }
 
