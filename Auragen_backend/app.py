@@ -6,8 +6,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from services.cognitive_engine import cognitive_engine
 from services.decision_engine import decision_engine
 from services.prompt_builder import prompt_builder
-
 from routes.generate import router as generate_router
+from utils.validator import validate_component
+from utils.security_validator import validate_security
+from utils.save_code import save_component
+from utils.logger import logger
 
 app = FastAPI(
     title="AuraGen AI Backend",
@@ -81,21 +84,39 @@ async def websocket_endpoint(websocket: WebSocket):
                     }
                 )
 
-                if True:
+                full_code = ""
 
-                    generated = generator.generate_component(prompt)
+                try:
 
-                    print("Generated:", generated["filename"])
-                    print(generated["generated_code"])
+                    for token in generator.stream_component(
+                            user_prompt=prompt,
+                            dom_state="",
+                            form_data={}
+                    ):
+                        full_code += token
+
+                        # Send token to frontend for preview only
+                        await manager.send_json(
+                            websocket,
+                            {
+                                "type": "token",
+                                "content": token
+                            }
+                        )
+
+                except Exception as e:
+
+                    logger.exception("LLM streaming failed")
 
                     await manager.send_json(
                         websocket,
                         {
-                            "type": "generated_component",
-                            "filename": generated["filename"],
-                            "code": generated["generated_code"]
+                            "type": "error",
+                            "message": "Component generation failed."
                         }
                     )
+
+                    continue
 
             else:
 
