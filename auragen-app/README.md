@@ -1,60 +1,76 @@
+# AuraGen — Self-Healing Generative UI (Frontend)
 
-# Mouse Telemetry + Dynamic Component Kit (separated components)
+Frontend for the AuraGen project: tracks mouse telemetry (velocity, hesitation,
+click patterns), streams it to the backend over WebSockets, displays the live
+Cognitive Load Score, and renders LLM-generated React components in-browser
+with a morphing transition and graceful fallback if generation fails.
 
-Same functionality as before, decomposed into single-responsibility hooks
-and components instead of two large files.
+## Status: Weeks 1–4 complete (frontend)
 
+| Week | Deliverable | Status |
+|---|---|---|
+| 1 | Telemetry tracker (velocity, hesitation, clicks) over WebSockets | ✅ |
+| 2 | Dynamic in-browser code compile + render | ✅ |
+| 3 | Morphing transition (Framer Motion) between static/generated UI | ✅ |
+| 4 | Fallback states + graceful degradation on bad/failed generation | ✅ |
+
+Cognitive Load Score display and generation triggering depend on backend
+thresholds (`Auragen_backend`) — see Known Issues below.
+
+## Project structure
 ```
-mouse-telemetry-kit-v2/
-├── hooks/
-│   ├── useTelemetrySocket.js            WebSocket transport: buffering, batching, reconnect
-│   ├── useMouseVelocityAndHesitation.js Cursor velocity + hesitation detection
-│   ├── useClickPatterns.js              Click rhythm, double-click, pause-before-click
-│   └── useMouseTelemetry.js             Composes the three above into one hook
-├── components/
-│   ├── RenderBoundary.jsx               Error boundary around the compiled component
-│   ├── StatusBadge.jsx                  Idle/downloading/compiling/live/error pill
-│   ├── ErrorPanel.jsx                   Reusable error display
-│   ├── CodeEditorPanel.jsx              Manual code textarea + "Run this code"
-│   ├── DynamicCodeRenderer.jsx          Orchestrates the above into the rendering shell
-│   └── TelemetryReadout.jsx             Small header widget for the demo app
-├── utils/
-│   └── babelLoader.js                   Lazy-loads Babel standalone + compiles source -> Component
-└── App.example.jsx                      Wires useMouseTelemetry + DynamicCodeRenderer together
+auragen-app/
+├── src/
+│ ├── hooks/
+│ │ ├── useTelemetrySocket.js WebSocket transport, batching, reconnect, backend message handling
+│ │ ├── useMouseVelocityAndHesitation.js Cursor velocity + hesitation detection
+│ │ ├── useClickPatterns.js Click rhythm, double-click, pause-before-click
+│ │ └── useMouseTelemetry.js Composes the above into one hook
+│ ├── components/
+│ │ ├── DynamicCodeRenderer.jsx Orchestrates compile/render/fallback, wraps TransitionShell
+│ │ ├── TransitionShell.jsx Framer Motion crossfade between static/generated/error views
+│ │ ├── RenderBoundary.jsx Runtime error boundary, reverts to last stable version
+│ │ ├── StaticFallbackForm.jsx Safe default UI shown when generation fails and no prior version exists
+│ │ ├── CognitiveLoadMeter.jsx Live Cognitive Load Score bar (driven by backend's high_load flag)
+│ │ ├── StatusBadge.jsx Idle/downloading/compiling/live/error pill
+│ │ ├── ErrorPanel.jsx Reusable error display
+│ │ ├── CodeEditorPanel.jsx Manual code textarea + "Run this code" (for testing without backend)
+│ │ └── TelemetryReadout.jsx Header widget: connection status, velocity, clicks, cognitive load
+│ └── utils/
+│ └── babelLoader.js Lazy-loads Babel standalone, compiles source string -> Component
+└── App.jsx Wires useMouseTelemetry + DynamicCodeRenderer together
+```
+## Setup
+
+```bash
+npm install
+npm run dev
+```
+Runs on http://localhost:5173. Requires the backend running separately
+(`uvicorn app:app --reload` from `Auragen_backend`, with its venv active)
+so the WebSocket at `ws://127.0.0.1:8000/ws` (set in `App.jsx`) has
+something to connect to.
+
+## Testing without the backend
+
+Expand **"Edit source manually"** in the UI and paste a component directly —
+useful for testing the compiler, TransitionShell animation, and fallback
+states without waiting on a live LLM generation:
+
+```jsx
+function Demo() {
+  return <div className="p-4 text-lg">Hello from generated UI</div>;
+}
 ```
 
-Tailwind is assumed to already be configured in your app (CDN Play script
-or a normal build-time config both work).
+## Wire message schema (backend → frontend)
 
-## Why split it up
-
-- `useTelemetrySocket` has zero knowledge of mice — it just buffers and
-  ships whatever events it's given. You could reuse it for keyboard or
-  scroll telemetry.
-- `useMouseVelocityAndHesitation` and `useClickPatterns` each own one
-  `window` listener setup and are independently testable/importable.
-- `useMouseTelemetry` is the only place that wires them together — swap
-  in a different transport or drop click tracking by editing one file.
-- `DynamicCodeRenderer` no longer owns any markup for status/errors/editing
-  directly; each piece is its own component, easy to reskin or replace.
-
-## `useMouseTelemetry(options)`
-
-```js
-const telemetry = useMouseTelemetry({
-  wsUrl: 'wss://api.example.com/telemetry', // omit/null to track locally without streaming
-  batchIntervalMs: 500,
-  maxBatchSize: 50,
-  hesitationVelocityThreshold: 0.05, // px/ms
-  hesitationMinDurationMs: 300,
-  doubleClickWindowMs: 400,
-  doubleClickDistancePx: 12,
-});
+```json
+{ "type": "cognitive_score", "score": 0.42, "high_load": false }
+{ "type": "generated_component", "code": "function Demo() { ... }" }
 ```
 
-Returns `{ x, y, velocity, isHesitating, lastClick, clickCount, connectionStatus, flushNow }`.
-
-### Wire message schema
+## Wire message schema (frontend → backend)
 
 ```json
 {
@@ -76,40 +92,23 @@ Returns `{ x, y, velocity, isHesitating, lastClick, clickCount, connectionStatus
   ]
 }
 ```
-
-Clicks flush immediately; moves/hesitations batch on `batchIntervalMs`.
-While disconnected, events queue in a bounded backlog
+Clicks flush immediately; moves/hesitations batch on `batchIntervalMs`. While
+disconnected, events queue in a bounded backlog
 (`maxBatchSize * maxQueuedBatches`) and reconnects use exponential backoff
 up to `reconnectMaxDelayMs`.
 
-## `DynamicCodeRenderer`
+## Known issues / backend-dependent
 
-```jsx
-<DynamicCodeRenderer
-  sourceUrl="https://your-code-host.example.com/latest-component.jsx"
-  pollIntervalMs={5000}       // 0 = fetch once, no polling
-  scope={{ telemetry }}       // extra values available inside the compiled code
-/>
-```
+- Cognitive Load Score's numeric scale is backend-defined (not a clean 0–1
+  fraction) — the meter currently trusts the backend's `high_load` boolean
+  for color/label rather than the raw score value.
+- UI generation only triggers once the backend flips `high_load: true`;
+  during testing this threshold has rarely fired even under simulated
+  rage-clicks/hesitation, so tuning is pending on the backend side.
 
-The downloaded (or pasted) source must assign the root component to a
-top-level `Component` identifier:
+## Security note
 
-```jsx
-const Component = () => (
-  <div className="p-4 text-sm text-slate-700">
-    Hello from a dynamically compiled component
-  </div>
-);
-```
-
-`utils/babelLoader.js` lazy-loads Babel standalone from a CDN, transforms
-the string with the `react` and `env` presets, then wraps the result in
-`new Function(...)` to extract `Component`. `React` and anything in
-`scope` are passed in as arguments, so the code can use them without an
-`import`.
-
-**Security note:** this evaluates arbitrary JS — the same trust model as
-any in-browser playground. Only point `sourceUrl` at code you control or
-trust. For user-submitted code, isolate it inside a sandboxed `<iframe>`
-rather than compiling it directly in the host page.
+`DynamicCodeRenderer` evaluates code returned by the backend via
+`new Function(...)` after Babel compilation. Only point this at a backend
+you control — for untrusted/user-submitted code, sandbox in an `<iframe>`
+instead.
