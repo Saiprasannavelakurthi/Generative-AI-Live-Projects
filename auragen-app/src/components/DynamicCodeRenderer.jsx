@@ -17,7 +17,6 @@ import ErrorPanel from "./ErrorPanel";
 import CodeEditorPanel from "./CodeEditorPanel";
 import StaticFallbackForm from "./StaticFallbackForm";
 
-// Maps this component's internal status names to TransitionShell's vocabulary.
 const SHELL_STATUS = {
   idle: "idle",
   loading: "downloading",
@@ -29,6 +28,7 @@ const SHELL_STATUS = {
 export default function DynamicCodeRenderer({
   sourceUrl = null,
   code: initialCode = "",
+  defaultCode = null,
   pollIntervalMs = 0,
   scope = {},
   className = "",
@@ -42,8 +42,6 @@ export default function DynamicCodeRenderer({
   const [CompiledComponent, setCompiledComponent] = useState(null);
   const [renderKey, setRenderKey] = useState(0);
 
-  // Tracks the last component that compiled AND rendered without crashing,
-  // so a bad generation can fall back to it instead of going blank.
   const lastGoodRef = useRef(null);
   const [degraded, setDegraded] = useState(false);
 
@@ -56,15 +54,8 @@ export default function DynamicCodeRenderer({
 
   const memoScope = useMemo(
     () => ({
-      React,
-      useState,
-      useEffect,
-      useMemo,
-      useRef,
-      useCallback,
-      useContext,
-      useReducer,
-      useLayoutEffect,
+      React, useState, useEffect, useMemo, useRef,
+      useCallback, useContext, useReducer, useLayoutEffect,
       ...scope,
     }),
     [scope]
@@ -84,7 +75,7 @@ export default function DynamicCodeRenderer({
     setCompiledComponent(() => lastGoodRef.current.component);
     setStatus("ready");
     setErrorMessage(null);
-    setDegraded(true); // still flag it, since it's not the newest version
+    setDegraded(true);
     setRenderKey((k) => k + 1);
   }, []);
 
@@ -94,6 +85,7 @@ export default function DynamicCodeRenderer({
     if (!sourceUrl && (!pendingSource || !pendingSource.trim())) {
       setStatus("idle");
       setErrorMessage(null);
+      setCompiledComponent(null);
       return;
     }
 
@@ -114,16 +106,12 @@ export default function DynamicCodeRenderer({
       setStatus("ready");
       setDegraded(false);
 
-      // Only remembered as "last good" once it renders without throwing —
-      // RenderBoundary's onError below will revert if it crashes at runtime.
       lastGoodRef.current = { component: Compiled, code: source };
     } catch (err) {
       console.error(err);
       setErrorMessage(err.message || String(err));
 
       if (lastGoodRef.current) {
-        // Graceful degradation: keep showing the last working component
-        // instead of going blank on a bad generation.
         setCompiledComponent(() => lastGoodRef.current.component);
         setStatus("ready");
         setDegraded(true);
@@ -132,6 +120,15 @@ export default function DynamicCodeRenderer({
       }
     }
   };
+
+  const resetToDefault = useCallback(() => {
+    if (defaultCode === null) return;
+    lastGoodRef.current = null;
+    setDegraded(false);
+    setErrorMessage(null);
+    build(defaultCode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultCode]);
 
   useEffect(() => {
     build(initialCode);
@@ -145,23 +142,36 @@ export default function DynamicCodeRenderer({
   const isReady = status === "ready" && CompiledComponent;
 
   return (
-    <div className={`flex flex-col gap-3 ${className}`}>
-      <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+    <div className={`flex flex-col gap-4 ${className}`}>
+      {/* Toolbar */}
+      <div className="flex items-center justify-between rounded-2xl border border-white/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur">
         <div className="flex items-center gap-2">
           <StatusBadge status={status} />
           {degraded && isReady && (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-medium text-amber-700 ring-1 ring-inset ring-amber-200">
               showing last stable version
             </span>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => build(editableCode)}
-          className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-slate-700"
-        >
-          Reload Source
-        </button>
+
+        <div className="flex items-center gap-2">
+          {defaultCode !== null && (
+            <button
+              type="button"
+              onClick={resetToDefault}
+              className="rounded-lg border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 active:scale-95"
+            >
+              ↺ Reset to Default
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => build(editableCode)}
+            className="rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm shadow-indigo-200 transition hover:from-indigo-500 hover:to-purple-500 active:scale-95"
+          >
+            ⟳ Reload Source
+          </button>
+        </div>
       </div>
 
       {errorMessage && (
@@ -171,17 +181,18 @@ export default function DynamicCodeRenderer({
         />
       )}
 
-      <div className="rounded-lg border border-slate-200 p-4">
+      {/* Render surface */}
+      <div className="rounded-2xl border border-white/60 bg-white/90 p-5 shadow-md backdrop-blur">
         <TransitionShell
           status={SHELL_STATUS[isReady ? "ready" : status] ?? "idle"}
           staticUI={
             status === "error" && !lastGoodRef.current ? (
               <StaticFallbackForm onRetry={() => build(editableCode)} />
             ) : (
-              <div className="py-6 text-center text-sm text-slate-400">
-                {status === "loading" && "Downloading source..."}
-                {status === "compiling" && "Compiling component..."}
-                {status === "idle" && "Waiting for source..."}
+              <div className="py-10 text-center text-sm text-slate-400">
+                {status === "loading" && "⬇ Downloading source..."}
+                {status === "compiling" && "⚙ Compiling component..."}
+                {status === "idle" && "💤 Waiting for source..."}
               </div>
             )
           }

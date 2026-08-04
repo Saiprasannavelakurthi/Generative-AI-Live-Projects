@@ -4,25 +4,39 @@ export default function CognitiveLoadMeter({ score, highLoad }) {
   if (score === null || score === undefined) return null;
 
   const level = highLoad
-    ? { label: 'High friction', color: 'bg-red-500', track: 'bg-red-100' }
+    ? { label: 'High friction', text: 'text-red-600', bar: 'from-red-500 to-rose-500', ring: 'ring-red-200', dot: 'bg-red-500' }
     : score > 0.3
-    ? { label: 'Friction rising', color: 'bg-amber-500', track: 'bg-amber-100' }
-    : { label: 'Calm', color: 'bg-emerald-500', track: 'bg-emerald-100' };
+    ? { label: 'Friction rising', text: 'text-amber-600', bar: 'from-amber-400 to-orange-500', ring: 'ring-amber-200', dot: 'bg-amber-500' }
+    : { label: 'Calm', text: 'text-emerald-600', bar: 'from-emerald-400 to-teal-500', ring: 'ring-emerald-200', dot: 'bg-emerald-500' };
 
   // Display-only scaling so the bar has *some* visual movement — not a real percentage.
   const pct = Math.min(score / 1.5, 1);
 
   return (
-    <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600">
-      <span className="font-medium text-slate-700">Cognitive Load</span>
-      <div className={`h-1.5 w-24 overflow-hidden rounded-full ${level.track}`}>
-        <div
-          className={`h-full rounded-full transition-all duration-500 ${level.color}`}
-          style={{ width: `${pct * 100}%` }}
-        />
+    <div className={`flex items-center gap-3 rounded-2xl border border-white/60 bg-white/80 px-4 py-2 shadow-sm ring-1 ${level.ring} backdrop-blur`}>
+      <span className={`h-2 w-2 rounded-full ${level.dot} ${highLoad ? 'animate-pulse' : ''}`} />
+
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            Cognitive Load
+          </span>
+          <span className={`text-sm font-bold tabular-nums ${level.text}`}>
+            {score.toFixed(2)}
+          </span>
+        </div>
+
+        <div className="h-2 w-32 overflow-hidden rounded-full bg-slate-100">
+          <div
+            className={`h-full rounded-full bg-gradient-to-r ${level.bar} transition-all duration-500 ease-out`}
+            style={{ width: `${pct * 100}%` }}
+          />
+        </div>
       </div>
-      <span className="tabular-nums">{score.toFixed(2)}</span>
-      <span className="text-slate-400">· {level.label}</span>
+
+      <span className={`whitespace-nowrap text-xs font-medium ${level.text}`}>
+        {level.label}
+      </span>
     </div>
   );
 }
