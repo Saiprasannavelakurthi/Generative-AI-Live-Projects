@@ -9,12 +9,8 @@ class DecisionEngine:
         page_name: str = "",
         current_component: str = "",
         active_field: str = "",
-        user_action: str = ""
-    ):
-        """
-        Decide which UI should be generated based on
-        the user's cognitive load and current context.
-        """
+        user_action: str = "",
+    ) -> str:
 
         page = page_name.strip().lower()
         field = active_field.strip().lower()
@@ -22,11 +18,7 @@ class DecisionEngine:
 
         score = max(0.0, min(score, 10.0))
 
-        decision = "minimal_ui"
-
-        # ============================
-        # Login Page
-        # ============================
+        decision = "simple_ui"
 
         if page == "login":
 
@@ -34,14 +26,10 @@ class DecisionEngine:
                 decision = "simple_login"
 
             elif score < 6:
-                decision = "login_dashboard"
+                decision = "dashboard"
 
             else:
                 decision = "minimal_login"
-
-        # ============================
-        # Dashboard
-        # ============================
 
         elif page == "dashboard":
 
@@ -53,10 +41,6 @@ class DecisionEngine:
 
             else:
                 decision = "minimal_dashboard"
-
-        # ============================
-        # Loan Form
-        # ============================
 
         elif page == "loan":
 
@@ -72,33 +56,33 @@ class DecisionEngine:
             else:
                 decision = "loan_form"
 
-        # ============================
-        # Registration
-        # ============================
-
         elif page == "register":
 
             if score > 6:
-                decision = "minimal_registration"
+                decision = "minimal_ui"
+
             else:
                 decision = "registration_form"
 
-        # ============================
-        # User Behaviour
-        # ============================
+        elif page == "profile":
 
-        elif action == "scrolling":
+            decision = "profile_page"
+
+        elif page == "contact":
+
+            decision = "contact_form"
+
+        elif action == "scroll":
+
             decision = "compact_layout"
 
-        elif action == "typing":
-            decision = current_component or "form_layout"
+        elif action == "input":
 
-        elif action == "clicking":
-            decision = current_component or "interactive_layout"
+            decision = "form_layout"
 
-        # ============================
-        # Default
-        # ============================
+        elif action == "click":
+
+            decision = "interactive_layout"
 
         else:
 
@@ -112,7 +96,7 @@ class DecisionEngine:
                 decision = "minimal_ui"
 
         logger.info(
-            f"DecisionEngine selected '{decision}' "
+            f"Decision='{decision}' "
             f"(page={page}, score={score}, action={action})"
         )
 

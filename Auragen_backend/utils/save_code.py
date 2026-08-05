@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 
 
-def save_component(filename, code):
+def save_component(filename: str, code: str) -> str:
     """
     Save the generated React component
     inside the generated_ui folder.
@@ -27,5 +27,3 @@ def save_component(filename, code):
         file.write(code)
 
     return unique_filename
-
-print("✅ Saving component")

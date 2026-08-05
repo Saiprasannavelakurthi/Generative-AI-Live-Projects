@@ -1,4 +1,5 @@
 from services.babel_service import validate_with_babel
+import re
 
 def validate_component(code):
     """
@@ -9,21 +10,24 @@ def validate_component(code):
     if not code or not code.strip():
         return False, "Error: Empty response from AI."
 
-    # 2. Root component contract
-    if "const Component" not in code:
+    # 2. Markdown is not allowed
+    if "```" in code:
+        return False, "Error: Remove markdown formatting."
+
+    # 3. Root component contract
+    if not re.search(
+            r"const\s+Component\s*=",
+            code
+    ):
         return False, "Error: Root component must be named Component."
 
-    # 3. Component must be an arrow function
+    # 4. Component must be an arrow function
     if "=>" not in code:
         return False, "Error: Component must be an arrow function."
 
-    # 4. Basic JSX check
-    if "<" not in code or ">" not in code:
-        return False, "Error: JSX code not found."
-
-    # 5. Markdown is not allowed
-    if "```" in code:
-        return False, "Error: Remove markdown formatting."
+    # 5. Basic JSX check
+    if "return (" not in code and "return<" not in code.replace(" ", ""):
+        return False, "Error: JSX return statement not found."
 
     # 6. Imports are not allowed
     if "import " in code:

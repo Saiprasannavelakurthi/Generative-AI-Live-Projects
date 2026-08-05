@@ -1,124 +1,94 @@
-from generator import generator
-from fastapi import FastAPI
-from fastapi import WebSocket, WebSocketDisconnect
-from websocket_manager import manager
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from services.cognitive_engine import cognitive_engine
-from services.decision_engine import decision_engine
-from services.prompt_builder import prompt_builder
+
+from generator import generator
+from websocket_manager import manager
+
 from routes.generate import router as generate_router
+
+from services.cognitive_engine import cognitive_engine
+from services.generation_controller import generation_controller
 from utils.validator import validate_component
 from utils.security_validator import validate_security
 from utils.save_code import save_component
 from utils.logger import logger
 
+
 app = FastAPI(
     title="AuraGen AI Backend",
     version="1.0.0",
-    description="AI Backend for generating React components using Groq + LangChain"
+    description="AI Backend for generating React components using Groq + LangChain",
 )
 
-# Enable CORS
+# ==========================================================
+# CORS
+# ==========================================================
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],      # Change this in production
+    allow_origins=["*"],  # Change in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Register Routes
+# ==========================================================
+# Routes
+# ==========================================================
+
 app.include_router(generate_router)
 
+
+# ==========================================================
+# Health APIs
+# ==========================================================
 
 @app.get("/")
 def home():
     return {
         "project": "AuraGen",
         "status": "Running",
-        "version": "1.0.0"
+        "version": "1.0.0",
     }
 
 
 @app.get("/health")
 def health():
     return {
-        "status": "Healthy"
+        "status": "Healthy",
     }
+
+
+# ==========================================================
+# WebSocket
+# ==========================================================
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
 
     await manager.connect(websocket)
 
-    print("Frontend Connected")
+    logger.info("Frontend connected.")
 
     try:
+
         while True:
 
             data = await websocket.receive_json()
 
-            print("Received:", data)
+            print("\n========== RECEIVED ==========")
+            print(data)
+            print("==============================")
 
-            if data.get("type") == "telemetry_batch":
+            result = cognitive_engine.calculate_score(
+                data.get("events", [])
+            )
 
-                result = cognitive_engine.calculate_score(
-                    data.get("events", [])
-                )
+            print("Cognitive:", result)
 
-                print("Cognitive Result:", result)
-                ui_type = decision_engine.decide_ui(result["score"])
+            logger.info(f"Received telemetry: {data}")
 
-                print("Selected UI:", ui_type)
-
-                prompt = prompt_builder.build_prompt(ui_type)
-
-                print("Prompt:", prompt)
-
-                await manager.send_json(
-                    websocket,
-                    {
-                        "type": "cognitive_score",
-                        "score": result["score"],
-                        "high_load": result["high_load"]
-                    }
-                )
-
-                full_code = ""
-
-                try:
-
-                    for token in generator.stream_component(
-                            user_prompt=prompt,
-                            dom_state="",
-                            form_data={}
-                    ):
-                        full_code += token
-
-                        # Send token to frontend for preview only
-                        await manager.send_json(
-                            websocket,
-                            {
-                                "type": "token",
-                                "content": token
-                            }
-                        )
-
-                except Exception as e:
-
-                    logger.exception("LLM streaming failed")
-
-                    await manager.send_json(
-                        websocket,
-                        {
-                            "type": "error",
-                            "message": "Component generation failed."
-                        }
-                    )
-
-                    continue
-
-            else:
+            if data.get("type") != "telemetry_batch":
 
                 await manager.send_json(
                     websocket,
@@ -127,8 +97,167 @@ async def websocket_endpoint(websocket: WebSocket):
                     }
                 )
 
+                continue
+
+            # ----------------------------------------
+            # Cognitive score
+            # ----------------------------------------
+
+            result = cognitive_engine.calculate_score(
+                data.get("events", [])
+            )
+
+            logger.info(
+                f"Cognitive Result: {result}"
+            )
+
+            # ----------------------------------------
+            # Send score
+            # ----------------------------------------
+
+            await manager.send_json(
+                websocket,
+                {
+                    "type": "cognitive_score",
+                    "score": result["score"],
+                    "high_load": result["high_load"],
+                },
+            )
+
+            should_generate = (
+                    result["high_load"]
+                    or data.get("user_action") in [
+                        "move",
+                        "click",
+                        "hesitation"
+                    ]
+            )
+
+            logger.info(
+                f"Should Generate: {should_generate}"
+            )
+
+            if not should_generate:
+                logger.info("Skipping UI generation")
+                continue
+
+            allowed = generation_controller.can_generate()
+            print("Generation Controller:", allowed)
+
+            if not allowed:
+                logger.info("Generation skipped (cooldown)")
+                continue
+
+            logger.info("Generating Adaptive UI...")
+
+            full_code = ""
+
+            try:
+                print("========== START GENERATION ==========")
+                for token in generator.stream_component(
+                        user_prompt="Generate Adaptive UI",
+                        dom_state=data.get("dom_state", ""),
+                        form_data=data.get("form_data", {}),
+                        session_id=data.get("session_id", ""),
+                        page_name=data.get("page_name", ""),
+                        current_component=data.get("current_component", ""),
+                        active_field=data.get("active_field", ""),
+                        cognitive_score=result["score"],
+                        user_action=data.get("user_action", ""),
+                ):
+                    full_code += token
+
+                    await manager.send_json(
+                        websocket,
+                        {
+                            "type": "token",
+                            "content": token,
+                        },
+                    )
+                print("========== END GENERATION ==========")
+
+                status, message = validate_component(
+                    full_code
+                )
+
+                if not status:
+                    logger.warning(
+                        f"Validation failed: {message}"
+                    )
+
+                    await manager.send_json(
+                        websocket,
+                        {
+                            "type": "error",
+                            "message": message,
+                        },
+                    )
+
+                    continue
+
+                safe, security_message = validate_security(
+                    full_code
+                )
+
+                if not safe:
+                    logger.warning(
+                        f"Security validation failed: "
+                        f"{security_message}"
+                    )
+
+                    await manager.send_json(
+                        websocket,
+                        {
+                            "type": "error",
+                            "message": security_message,
+                        },
+                    )
+
+                    continue
+
+                filename = (
+                        data.get("page_name", "").title().replace(" ", "")
+                        or "GeneratedComponent"
+                )
+
+                saved_filename = save_component(
+                    filename,
+                    full_code
+                )
+
+                logger.info(
+                    f"Component saved: {saved_filename}"
+                )
+
+                await manager.send_json(
+                    websocket,
+                    {
+                        "type": "complete",
+                        "filename": saved_filename,
+                        "generated_code": full_code,
+                        "page_name": data.get("page_name", ""),
+                        "session_id": data.get("session_id", ""),
+                        "preserved_data": True,
+                        "context_version": 3,
+                    },
+                )
+
+            except Exception:
+
+                logger.exception(
+                    "Streaming generation failed."
+                )
+
+                await manager.send_json(
+                    websocket,
+                    {
+                        "type": "error",
+                        "message": "Component generation failed.",
+                    },
+                )
+
     except WebSocketDisconnect:
 
         manager.disconnect(websocket)
 
-        print("Disconnected")
+        logger.info("Frontend disconnected.")

@@ -5,10 +5,10 @@ import time
 from config import CACHE_TTL
 from utils.logger import logger
 
-_cache = {}
+_cache: dict = {}
 
-_cache_hits = 0
-_cache_misses = 0
+_cache_hits: int = 0
+_cache_misses: int = 0
 
 
 def cleanup_expired_cache():
@@ -65,7 +65,8 @@ def create_cache_key(
 
     raw = json.dumps(
         payload,
-        sort_keys=True
+        sort_keys=True,
+        default=str
     )
 
     return hashlib.sha256(
@@ -97,7 +98,7 @@ def get_cached(key: str):
     return item["value"]
 
 
-def set_cached(key: str, value):
+def set_cached(key: str, value: dict):
 
     _cache[key] = {
 
@@ -117,14 +118,14 @@ def clear_cache():
     logger.info("Cache cleared.")
 
 
-def cache_size():
+def cache_size() -> int:
 
     cleanup_expired_cache()
 
     return len(_cache)
 
 
-def cache_stats():
+def cache_stats() -> dict:
     """
     Return cache statistics.
     """

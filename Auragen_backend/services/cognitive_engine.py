@@ -1,6 +1,6 @@
 class CognitiveEngine:
     def __init__(self):
-        self.threshold = 3
+        self.threshold = 6
 
     def calculate_score(self, events):
         """
@@ -38,9 +38,11 @@ class CognitiveEngine:
 
         score = min(score, 100)
 
+        normalized_score = round(score / 10, 2)
+
         return {
-            "score": round(score, 2),
-            "high_load": score >= self.threshold
+            "score": normalized_score,
+            "high_load": normalized_score >= self.threshold
         }
 
 

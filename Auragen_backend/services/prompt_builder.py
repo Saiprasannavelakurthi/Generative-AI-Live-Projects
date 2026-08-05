@@ -1,18 +1,39 @@
+from utils.prompt_templates import *
+
 class PromptBuilder:
 
-    def build_prompt(self, ui_type):
+    def __init__(self):
 
-        if ui_type == "simple_login":
-            return "Create a simple React login page."
+        self.prompt_map = {
 
-        elif ui_type == "dashboard":
-            return "Create a modern React dashboard."
+            "simple_login": LOGIN_FORM,
+            "minimal_login": MINIMAL_LOGIN,
 
-        elif ui_type == "minimal_ui":
-            return "Create a minimal distraction-free React interface."
+            "registration_form": REGISTER_FORM,
 
-        else:
-            return "Create a simple React page."
+            "dashboard": DASHBOARD,
+            "rich_dashboard": RICH_DASHBOARD,
+            "minimal_dashboard": MINIMAL_DASHBOARD,
+
+            "loan_form": LOAN_FORM,
+            "loan_salary_helper": LOAN_SALARY_HELPER,
+            "loan_income_helper": LOAN_INCOME_HELPER,
+            "minimal_loan_form": MINIMAL_LOAN_FORM,
+
+            "profile_page": PROFILE_PAGE,
+            "contact_form": CONTACT_FORM,
+
+            "compact_layout": COMPACT_LAYOUT,
+            "form_layout": FORM_LAYOUT,
+            "interactive_layout": INTERACTIVE_LAYOUT,
+
+            "minimal_ui": MINIMAL_UI,
+            "simple_ui": SIMPLE_UI,
+        }
+
+    def build_prompt(self, ui_type: str) -> str:
+
+        return self.prompt_map.get(ui_type, SIMPLE_UI)
 
 
 prompt_builder = PromptBuilder()

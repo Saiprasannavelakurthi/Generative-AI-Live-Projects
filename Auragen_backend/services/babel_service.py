@@ -1,7 +1,9 @@
 import subprocess
 import json
 import os
+import logging
 
+logger = logging.getLogger(__name__)
 
 def validate_with_babel(code: str):
 
@@ -65,6 +67,7 @@ def validate_with_babel(code: str):
         }
 
     except Exception as e:
+        logger.exception("Babel validation failed.")
         return {
             "valid": False,
             "message": f"Babel validation error: {str(e)}"

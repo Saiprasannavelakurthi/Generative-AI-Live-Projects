@@ -19,11 +19,10 @@ def prepare_dom_context(dom_state: str | None) -> str:
 
 
 # ====================================================
-# Week 3 Context Functions
+# Context Functions
 # ====================================================
 
-_context_store = {}
-
+_context_store: dict[str, dict] = {}
 
 def save_context(
     session_id: str,
@@ -49,7 +48,7 @@ def save_context(
 
         "active_field": active_field,
 
-        "form_data": form_data.copy(),
+        "form_data": dict(form_data),
 
         "cognitive_score": cognitive_score,
 

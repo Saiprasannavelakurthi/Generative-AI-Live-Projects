@@ -14,6 +14,9 @@ DANGEROUS = [
     "require(",
     "import(",
     "window.location",
+    "settimeout(",
+    "setinterval(",
+    "websocket",
 ]
 
 def validate_security(code):
@@ -21,8 +24,10 @@ def validate_security(code):
         Validate generated React code for dangerous JavaScript patterns.
     """
 
+    lower_code = code.lower()
+
     for keyword in DANGEROUS:
-        if keyword in code:
+        if keyword.lower() in lower_code:
             return False, f"Unsafe keyword found: {keyword}"
 
     return True, "Safe"

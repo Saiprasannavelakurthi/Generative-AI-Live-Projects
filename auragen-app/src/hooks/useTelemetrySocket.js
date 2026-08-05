@@ -13,7 +13,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 const DEFAULTS = {
   wsUrl: null,
-  batchIntervalMs: 500,
+  batchIntervalMs: 3000,
   maxBatchSize: 50,
   maxQueuedBatches: 5,
   reconnect: true,
@@ -46,14 +46,39 @@ export function useTelemetrySocket(options = {}) {
 
     const ws = wsRef.current;
 
+    console.log("Sending telemetry");
+    console.log(JSON.stringify({
+    type: "telemetry_batch",
+    events: batch,
+}));
+    console.log(batch);
+
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(
-        JSON.stringify({
-          type: "telemetry_batch",
-          events: batch,
-          sentAt: Date.now(),
-        })
-      );
+          JSON.stringify({
+            type: "telemetry_batch",
+
+            events: batch,
+
+            session_id: "user123",
+
+            page_name: "login",
+
+            current_component: "Login",
+
+            active_field: "",
+
+            cognitive_score: cognitiveScore ?? 0,
+
+            user_action: batch[batch.length - 1]?.type || "mousemove",
+
+            dom_state: document.body.innerHTML,
+
+            form_data: {},
+
+            sentAt: Date.now(),
+          })
+        );
     } else {
       const merged = batch.concat(bufferRef.current);
 
@@ -126,29 +151,30 @@ export function useTelemetrySocket(options = {}) {
     // ==========================
 
     ws.onmessage = (event) => {
-      const message = JSON.parse(event.data);
+  const message = JSON.parse(event.data);
 
-      console.log("========== BACKEND MESSAGE ==========");
-      console.log(message);
-      console.log("=====================================");
+  console.log("Backend Response");
+  console.log(message);
 
-      setBackendMessage(message);
+  setBackendMessage(message);
 
-      if (message.type === "cognitive_score") {
-        setCognitiveScore(message.score);
-        setHighLoad(!!message.high_load);
-      }
+  if (message.type === "cognitive_score") {
+    setCognitiveScore(message.score);
+    setHighLoad(!!message.high_load);
+  }
 
-      if (message.type === "generated_component") {
-        console.log("========== GENERATED CODE RECEIVED ==========");
-        console.log(message.code);
-        console.log("============================================");
+  // Final generated component
+  if (message.type === "complete") {
+    console.log("========== GENERATED CODE RECEIVED ==========");
+    console.log(message.generated_code);
+    console.log("============================================");
 
-        setGeneratedCode(message.code);
+    // Replace streamed code with the final complete code
+    setGeneratedCode(message.generated_code);
 
-        console.log("State Updated with Generated Code");
-      }
-    };
+    console.log("State Updated with Generated Code");
+  }
+};
   }, [config.wsUrl, config.reconnect, scheduleReconnect]);
 
   useEffect(() => {

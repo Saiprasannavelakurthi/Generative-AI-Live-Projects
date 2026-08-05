@@ -14,10 +14,10 @@ class GroqService:
             model=MODEL_NAME,
             api_key=GROQ_API_KEY,
             temperature=0.2,
-            max_tokens=2026
+            max_tokens=2048
         )
 
-    def generate(self, messages):
+    def generate(self, messages: list) -> str:
 
         if not messages:
             raise ValueError("Messages cannot be empty.")
@@ -45,11 +45,11 @@ class GroqService:
                 "Groq generation failed."
             )
 
-            raise Exception(
+            raise RuntimeError(
                 f"Groq API Error: {str(e)}"
             )
 
-    def stream_generate(self, messages):
+    def stream_generate(self, messages: list):
 
         if not messages:
             raise ValueError("Messages cannot be empty.")
@@ -78,7 +78,7 @@ class GroqService:
                 "Groq streaming failed."
             )
 
-            raise Exception(
+            raise RuntimeError(
                 f"Groq Stream Error: {str(e)}"
             )
 

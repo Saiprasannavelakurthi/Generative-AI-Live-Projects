@@ -57,13 +57,25 @@ export function useMouseVelocityAndHesitation(onEvent, options = {}) {
         isHesitating = false;
       }
 
-      onEvent({
-        type: 'move',
-        x: e.clientX,
-        y: e.clientY,
-        velocity: Number(velocity.toFixed(4)),
-        timestamp: Date.now(),
-      });
+      const acceleration =
+          (velocity - (lastPointRef.current.velocity || 0)) / dt;
+
+        lastPointRef.current = {
+          x: e.clientX,
+          y: e.clientY,
+          t: now,
+          velocity,
+        };
+
+        onEvent({
+          type: "move",
+          x: e.clientX,
+          y: e.clientY,
+          velocity: Number(velocity.toFixed(4)),
+          acceleration: Number(acceleration.toFixed(4)),
+          hesitation: isHesitating,
+          timestamp: Date.now(),
+        });
 
       setState({ x: e.clientX, y: e.clientY, velocity, isHesitating });
     },

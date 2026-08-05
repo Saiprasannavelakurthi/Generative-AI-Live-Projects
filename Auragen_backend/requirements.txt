@@ -7,3 +7,6 @@ langchain-core==0.3.74
 pydantic==2.11.7
 langchain-groq==0.3.7
 pytest
+httpx
+black
+flake8

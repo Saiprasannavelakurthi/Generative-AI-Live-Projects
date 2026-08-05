@@ -40,3 +40,28 @@ def test_sse_data_is_valid_json():
 
     assert payload["request_id"] == "test-123"
     assert payload["filename"] == "Login.jsx"
+
+
+def test_sse_validation_event():
+
+    result = sse_event(
+        "validation_error",
+        {
+            "request_id": "test-123",
+            "message": "Invalid JSX"
+        }
+    )
+
+    assert "event: validation_error" in result
+
+    data_line = next(
+        line
+        for line in result.splitlines()
+        if line.startswith("data: ")
+    )
+
+    payload = json.loads(
+        data_line.removeprefix("data: ")
+    )
+
+    assert payload["message"] == "Invalid JSX"

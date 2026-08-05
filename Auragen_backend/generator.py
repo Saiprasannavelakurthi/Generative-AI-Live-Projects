@@ -8,10 +8,37 @@ from services.cache_service import (
     set_cached,
 )
 from services.groq_service import groq_service
+from services.decision_engine import decision_engine
+from services.prompt_builder import prompt_builder
 from utils.logger import logger
 
 
 class ReactGenerator:
+
+    @staticmethod
+    def build_combined_prompt(
+            user_prompt: str,
+            page_name: str,
+            current_component: str,
+            active_field: str,
+            cognitive_score: float,
+            user_action: str,
+    ) -> str:
+
+        ui_type = decision_engine.decide_ui(
+            score=cognitive_score,
+            page_name=page_name,
+            current_component=current_component,
+            active_field=active_field,
+            user_action=user_action,
+        )
+
+        system_prompt = prompt_builder.build_prompt(ui_type)
+
+        return (
+            f"{system_prompt}\n\n"
+            f"User Request:\n{user_prompt}"
+        )
 
     @staticmethod
     def generate_component(
@@ -53,8 +80,17 @@ class ReactGenerator:
 
             return cached_result
 
+        combined_prompt = ReactGenerator.build_combined_prompt(
+            user_prompt,
+            page_name,
+            current_component,
+            active_field,
+            cognitive_score,
+            user_action,
+        )
+
         messages = prompt_template.format_messages(
-            user_prompt=user_prompt,
+            user_prompt=combined_prompt,
             dom_state=dom_state or "No DOM state provided.",
             form_data=form_data,
             session_id=session_id,
@@ -66,6 +102,14 @@ class ReactGenerator:
         )
 
         jsx_code = groq_service.generate(messages)
+        jsx_code = jsx_code.strip()
+
+        if not re.search(r"const\s+Component\s*=", jsx_code):
+            jsx_code = f"""const Component = () => {{
+            return (
+        {jsx_code}
+            );
+        }};"""
 
         elapsed = round(
             time.perf_counter() - start,
@@ -78,6 +122,8 @@ class ReactGenerator:
             .replace("Form", "")
             .strip()
         )
+
+        filename = filename[:50]
 
         if not filename:
             filename = "Component"
@@ -119,8 +165,17 @@ class ReactGenerator:
 
         form_data = form_data or {}
 
+        combined_prompt = ReactGenerator.build_combined_prompt(
+            user_prompt,
+            page_name,
+            current_component,
+            active_field,
+            cognitive_score,
+            user_action,
+        )
+
         messages = prompt_template.format_messages(
-            user_prompt=user_prompt,
+            user_prompt=combined_prompt,
             dom_state=dom_state or "No DOM state provided.",
             form_data=form_data,
             session_id=session_id,

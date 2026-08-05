@@ -12,7 +12,10 @@ process.stdin.on("end", () => {
     try {
         parser.parse(code, {
             sourceType: "module",
-            plugins: ["jsx"]
+            plugins:[
+                "jsx",
+                "typescript"
+            ]
         });
 
         console.log(

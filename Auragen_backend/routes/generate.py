@@ -16,12 +16,6 @@ from utils.save_code import save_component
 from utils.context_utils import prepare_dom_context
 from utils.logger import logger
 
-from services.cache_service import (
-    create_cache_key,
-    get_cached,
-    set_cached
-)
-
 def sse_event(event: str, data: dict) -> str:
     """
     Convert Python data into an SSE event.
@@ -75,37 +69,7 @@ def generate_ui(request: GenerateUIRequest):
         form_data = request.form_data or {}
 
         # ----------------------------------------------------
-        # 3. Create cache key
-        # ----------------------------------------------------
-
-        cache_key = create_cache_key(
-            request.prompt,
-            dom_state,
-            form_data
-        )
-
-        # ----------------------------------------------------
-        # 4. Check cache
-        # ----------------------------------------------------
-
-        cached = get_cached(cache_key)
-
-        if cached:
-            logger.info(
-                f"Request={request_id} | Cache HIT"
-            )
-
-            return GenerateUIResponse(
-                filename=cached["filename"],
-                generated_code=cached["generated_code"]
-            )
-
-        logger.info(
-            f"Request={request_id} | Cache MISS"
-        )
-
-        # ----------------------------------------------------
-        # 5. Generate React component
+        # 3. Generate React component
         # ----------------------------------------------------
 
         result = generator.generate_component(
@@ -118,7 +82,7 @@ def generate_ui(request: GenerateUIRequest):
         filename = result["filename"]
 
         # ----------------------------------------------------
-        # 6. React + Babel validation
+        # 4. React + Babel validation
         # ----------------------------------------------------
 
         status, message = validate_component(
@@ -141,7 +105,7 @@ def generate_ui(request: GenerateUIRequest):
             )
 
         # ----------------------------------------------------
-        # 7. Security validation
+        # 5. Security validation
         # ----------------------------------------------------
 
         safe, security_message = validate_security(
@@ -164,7 +128,7 @@ def generate_ui(request: GenerateUIRequest):
             )
 
         # ----------------------------------------------------
-        # 8. Save validated component
+        # 6. Save validated component
         # ----------------------------------------------------
 
         saved_filename = save_component(
@@ -172,31 +136,13 @@ def generate_ui(request: GenerateUIRequest):
             generated_code
         )
 
-        # ----------------------------------------------------
-        # 9. Prepare cache value
-        # ----------------------------------------------------
-
-        response_data = {
-            "filename": saved_filename,
-            "generated_code": generated_code
-        }
-
-        # ----------------------------------------------------
-        # 10. Save result to cache
-        # ----------------------------------------------------
-
-        set_cached(
-            cache_key,
-            response_data
-        )
-
         logger.info(
             f"Request={request_id} | "
-            f"Cache SAVED | Filename={saved_filename}"
+            f"Component saved | Filename={saved_filename}"
         )
 
         # ----------------------------------------------------
-        # 11. Return response
+        # 7. Return response
         # ----------------------------------------------------
 
         logger.info(
@@ -205,19 +151,22 @@ def generate_ui(request: GenerateUIRequest):
 
         return GenerateUIResponse(
             filename=saved_filename,
-            generated_code=generated_code
+            generated_code=generated_code,
+            preserved_data=result.get("preserved_data", True),
+            page_name=result.get("page_name", ""),
+            context_version=result.get("context_version", 3),
         )
 
     except HTTPException:
         raise
 
-    except Exception:
+    except Exception as e:
         logger.exception(
             f"Request={request_id} | Generate UI request failed"
         )
         raise HTTPException(
             status_code=500,
-            detail="Unable to generate UI"
+            detail=str(e)
         )
 
 
@@ -361,7 +310,10 @@ def generate_ui_stream(request: GenerateUIRequest):
                 {
                     "request_id": request_id,
                     "filename": saved_filename,
-                    "generated_code": full_code
+                    "generated_code": full_code,
+                    "preserved_data": True,
+                    "page_name": "",
+                    "context_version": 3
                 }
             )
 

@@ -17,7 +17,7 @@ const DEFAULT_CODE = `function Component() {
 export default function App() {
   const telemetry = useMouseTelemetry({
     wsUrl: "ws://127.0.0.1:8000/ws",
-    batchIntervalMs: 500,
+    batchIntervalMs: 3000,
   });
 
   const { generatedCode } = telemetry;

@@ -8,47 +8,64 @@ Your role is to generate intelligent, context-aware React UI components.
 
 {DESIGN_RULES}
 
-STRICT RULES:
+==============================
+STRICT RULES
+==============================
 
 1. Generate ONLY React Functional Components.
-2. Use Tailwind CSS only.
-3. The root React component MUST be named Component.
-4. Return ONLY JSX.
-5. Do NOT explain anything.
-6. Do NOT use Markdown.
-7. Do NOT wrap code inside ```jsx.
-8. Keep components production-ready.
-9. Follow AuraGen Design Rules exactly.
-10. Generate clean, readable, reusable code.
-11. Never use eval().
-12. Never use dangerouslySetInnerHTML.
-13. Never use document.write().
-14. Never use new Function().
-15. Never access window.location.
-16. Never generate malicious or unsafe JavaScript.
-17. Use the syntax: const Component = () => (...).
-18. Do NOT use function Component().
-19. Do NOT use export default.
-20. Do NOT include import statements.
-21. Do NOT include export statements.
-22. React is already available.
-23. Return ONLY Component code.
-24. Preserve every existing user-entered value.
-25. Never remove user information.
-26. Never change the meaning of a form.
-27. Use the DOM only as context.
-28. Use the page information to understand where the user is.
-29. Use the current component information.
-30. Preserve the active field.
-31. Adapt the UI according to the cognitive score.
-32. If cognitive score is high, simplify the interface.
-33. If cognitive score is low, keep the rich interface.
-34. Keep layouts responsive.
-35. Never generate incomplete JSX.
+
+2. The root component MUST be named Component.
+
+3. The component MUST be an arrow function.
+
+4. Use Tailwind CSS only.
+
+5. Return ONLY the React component code.
+
+6. Do NOT return:
+- Markdown
+- Explanations
+- Comments
+- Code fences
+
+7. Do NOT include import statements.
+
+8. Do NOT include export statements.
+
+9. Never use:
+- eval()
+- new Function()
+- document.write()
+- dangerouslySetInnerHTML
+- window.location
+
+10. Never generate malicious or unsafe JavaScript.
+
+11. Preserve all existing user-entered values.
+
+12. Never remove existing form values.
+
+13. Use the current page, DOM state, active field and user action as context.
+
+14. Adapt the interface according to the cognitive score.
+- High cognitive score → Simplify the interface.
+- Medium cognitive score → Balanced interface.
+- Low cognitive score → Rich interface.
+
+15. The output MUST satisfy ALL of these requirements:
+
+- The component name MUST be Component.
+- Use an arrow function.
+- Return valid JSX.
+- Return a single root JSX element.
+- Do NOT return plain HTML.
+- Do NOT return only JSX.
+- Do NOT return fragments.
+- Do NOT use any component name except Component.
 """
 
 USER_PROMPT = """
-Generate the following React UI Component.
+Generate a React UI component using the following context.
 
 ==============================
 USER REQUEST
@@ -87,29 +104,30 @@ USER ACTION
 {user_action}
 
 ==============================
-CURRENT DOM STATE
+CURRENT DOM
 ==============================
 
 {dom_state}
 
 ==============================
-EXISTING FORM DATA
+FORM DATA
 ==============================
 
 {form_data}
 
 ==============================
-INSTRUCTIONS
+REQUIREMENTS
 ==============================
 
-- Preserve every existing form value.
-- Never clear user inputs.
-- Keep field names meaningful.
-- Maintain the workflow.
-- Simplify only if cognitive score is high.
-- Keep all important information.
-- Use Tailwind CSS.
-- Return ONLY Component JSX.
+- Preserve all existing form values.
+- Maintain the current workflow.
+- Return ONLY valid React JSX.
+- Root component name must be Component.
+- Use an arrow function.
+- Do NOT include explanations.
+- Do NOT include Markdown.
+- Do NOT include import statements.
+- Do NOT include export statements.
 """
 
 prompt_template = ChatPromptTemplate.from_messages(
