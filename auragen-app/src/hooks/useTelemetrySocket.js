@@ -1,16 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-/**
- * useTelemetrySocket
- * ------------------
- * Handles:
- * - WebSocket connection
- * - Auto reconnect
- * - Event buffering
- * - Sending telemetry batches
- * - Receiving backend responses
- */
-
 const DEFAULTS = {
   wsUrl: null,
   batchIntervalMs: 3000,
@@ -27,66 +16,41 @@ export function useTelemetrySocket(options = {}) {
   const [status, setStatus] = useState("idle");
   const [backendMessage, setBackendMessage] = useState(null);
   const [generatedCode, setGeneratedCode] = useState("");
-  const [cognitiveScore, setCognitiveScore] = useState(null);
+  const [cognitiveScore, setCognitiveScore] = useState(0);
   const [highLoad, setHighLoad] = useState(false);
-
 
   const wsRef = useRef(null);
   const bufferRef = useRef([]);
+  const sessionIdRef = useRef(crypto.randomUUID());
 
   const reconnectAttemptRef = useRef(0);
   const reconnectTimeoutRef = useRef(null);
   const flushIntervalRef = useRef(null);
 
   const flush = useCallback(() => {
-    if (bufferRef.current.length === 0) return;
+    if (!bufferRef.current.length) return;
 
-    const batch = bufferRef.current;
+    const batch = [...bufferRef.current];
     bufferRef.current = [];
 
-    const ws = wsRef.current;
-
-    console.log("Sending telemetry");
-    console.log(JSON.stringify({
-    type: "telemetry_batch",
-    events: batch,
-}));
-    console.log(batch);
-
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(
-          JSON.stringify({
-            type: "telemetry_batch",
-
-            events: batch,
-
-            session_id: "user123",
-
-            page_name: "login",
-
-            current_component: "Login",
-
-            active_field: "",
-
-            cognitive_score: cognitiveScore ?? 0,
-
-            user_action: batch[batch.length - 1]?.type || "mousemove",
-
-            dom_state: document.body.innerHTML,
-
-            form_data: {},
-
-            sentAt: Date.now(),
-          })
-        );
-    } else {
-      const merged = batch.concat(bufferRef.current);
-
-      bufferRef.current = merged.slice(
-        -config.maxBatchSize * config.maxQueuedBatches
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(
+        JSON.stringify({
+          type: "telemetry_batch",
+          session_id: sessionIdRef.current,
+          page_name: "login",
+          current_component: "Login",
+          active_field: "",
+          cognitive_score: cognitiveScore,
+          user_action: batch[batch.length - 1]?.type ?? "move",
+          dom_state: document.body.innerHTML,
+          form_data: {},
+          sentAt: Date.now(),
+          events: batch,
+        })
       );
     }
-  }, [config.maxBatchSize, config.maxQueuedBatches]);
+  }, [cognitiveScore]);
 
   const enqueue = useCallback(
     (event) => {
@@ -96,27 +60,19 @@ export function useTelemetrySocket(options = {}) {
         flush();
       }
     },
-    [config.maxBatchSize, flush]
-  );
-
-  const scheduleReconnect = useCallback(
-    (connectFn) => {
-      const attempt = reconnectAttemptRef.current + 1;
-
-      reconnectAttemptRef.current = attempt;
-
-      const delay = Math.min(
-        config.reconnectBaseDelayMs * Math.pow(2, attempt - 1),
-        config.reconnectMaxDelayMs
-      );
-
-      reconnectTimeoutRef.current = setTimeout(connectFn, delay);
-    },
-    [config.reconnectBaseDelayMs, config.reconnectMaxDelayMs]
+    [flush, config.maxBatchSize]
   );
 
   const connect = useCallback(() => {
     if (!config.wsUrl) return;
+
+    if (
+      wsRef.current &&
+      (wsRef.current.readyState === WebSocket.OPEN ||
+        wsRef.current.readyState === WebSocket.CONNECTING)
+    ) {
+      return;
+    }
 
     setStatus("connecting");
 
@@ -127,60 +83,51 @@ export function useTelemetrySocket(options = {}) {
     ws.onopen = () => {
       reconnectAttemptRef.current = 0;
       setStatus("open");
+      console.log("Connected");
+    };
 
-      console.log("✅ Connected to Backend");
+    ws.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+
+      console.log("FULL MESSAGE");
+      console.log(JSON.stringify(message, null, 2));
+
+      setBackendMessage(message);
+
+      switch (message.type) {
+        case "cognitive_score":
+          setCognitiveScore(message.score ?? 0);
+          setHighLoad(!!message.high_load);
+          break;
+
+        case "complete":
+          console.log("Generated UI received");
+          setGeneratedCode(message.generated_code ?? "");
+          break;
+
+        default:
+          break;
+      }
     };
 
     ws.onclose = () => {
       setStatus("closed");
 
-      console.log("❌ WebSocket Closed");
-
       if (config.reconnect) {
-        scheduleReconnect(connect);
+        reconnectTimeoutRef.current = setTimeout(() => {
+          connect();
+        }, 3000);
       }
     };
 
     ws.onerror = (err) => {
-      console.error("WebSocket Error:", err);
+      console.error(err);
       setStatus("error");
     };
-
-    // ==========================
-    // Receive Backend Messages
-    // ==========================
-
-    ws.onmessage = (event) => {
-  const message = JSON.parse(event.data);
-
-  console.log("Backend Response");
-  console.log(message);
-
-  setBackendMessage(message);
-
-  if (message.type === "cognitive_score") {
-    setCognitiveScore(message.score);
-    setHighLoad(!!message.high_load);
-  }
-
-  // Final generated component
-  if (message.type === "complete") {
-    console.log("========== GENERATED CODE RECEIVED ==========");
-    console.log(message.generated_code);
-    console.log("============================================");
-
-    // Replace streamed code with the final complete code
-    setGeneratedCode(message.generated_code);
-
-    console.log("State Updated with Generated Code");
-  }
-};
-  }, [config.wsUrl, config.reconnect, scheduleReconnect]);
+  }, [config.wsUrl, config.reconnect]);
 
   useEffect(() => {
-    if (config.wsUrl) {
-      connect();
-    }
+    connect();
 
     flushIntervalRef.current = setInterval(
       flush,
@@ -191,23 +138,11 @@ export function useTelemetrySocket(options = {}) {
       clearInterval(flushIntervalRef.current);
       clearTimeout(reconnectTimeoutRef.current);
 
-      const ws = wsRef.current;
-
-      if (ws) {
-        ws.onopen = null;
-        ws.onclose = null;
-        ws.onerror = null;
-        ws.onmessage = null;
-
-        if (
-          ws.readyState === WebSocket.OPEN ||
-          ws.readyState === WebSocket.CONNECTING
-        ) {
-          ws.close();
-        }
+      if (wsRef.current) {
+        wsRef.current.close();
       }
     };
-  }, [connect, flush, config.wsUrl, config.batchIntervalMs]);
+  }, [connect, flush, config.batchIntervalMs]);
 
   return {
     status,

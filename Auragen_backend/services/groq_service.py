@@ -14,7 +14,7 @@ class GroqService:
             model=MODEL_NAME,
             api_key=GROQ_API_KEY,
             temperature=0.2,
-            max_tokens=2048
+            max_tokens=2048,
         )
 
     def generate(self, messages: list) -> str:
@@ -30,12 +30,17 @@ class GroqService:
 
             elapsed = round(
                 time.perf_counter() - start_time,
-                2
+                2,
             )
 
             logger.info(
                 f"Groq response generated in {elapsed} sec."
             )
+
+            # Print complete response for debugging
+            print("\n========== GROQ RESPONSE ==========")
+            print(response.content)
+            print("===================================\n")
 
             return response.content
 
@@ -58,19 +63,27 @@ class GroqService:
 
         try:
 
+            full_response = ""
+
             for chunk in self.llm.stream(messages):
 
                 if chunk.content:
+                    full_response += chunk.content
                     yield chunk.content
 
             elapsed = round(
                 time.perf_counter() - start_time,
-                2
+                2,
             )
 
             logger.info(
                 f"Groq streaming completed in {elapsed} sec."
             )
+
+            # Print the final streamed response
+            print("\n========== GROQ STREAM OUTPUT ==========")
+            print(full_response)
+            print("========================================\n")
 
         except Exception as e:
 

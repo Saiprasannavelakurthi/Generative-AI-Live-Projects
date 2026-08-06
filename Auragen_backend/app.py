@@ -1,5 +1,6 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+import traceback
 
 from generator import generator
 from websocket_manager import manager
@@ -26,7 +27,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Change in production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -86,8 +87,6 @@ async def websocket_endpoint(websocket: WebSocket):
 
             print("Cognitive:", result)
 
-            logger.info(f"Received telemetry: {data}")
-
             if data.get("type") != "telemetry_batch":
 
                 await manager.send_json(
@@ -99,21 +98,9 @@ async def websocket_endpoint(websocket: WebSocket):
 
                 continue
 
-            # ----------------------------------------
-            # Cognitive score
-            # ----------------------------------------
-
             result = cognitive_engine.calculate_score(
                 data.get("events", [])
             )
-
-            logger.info(
-                f"Cognitive Result: {result}"
-            )
-
-            # ----------------------------------------
-            # Send score
-            # ----------------------------------------
 
             await manager.send_json(
                 websocket,
@@ -125,45 +112,44 @@ async def websocket_endpoint(websocket: WebSocket):
             )
 
             should_generate = (
-                    result["high_load"]
-                    or data.get("user_action") in [
-                        "move",
-                        "click",
-                        "hesitation"
-                    ]
+                result["high_load"]
+                or data.get("user_action") in [
+                    "move",
+                    "click",
+                    "hesitation",
+                ]
             )
 
-            logger.info(
-                f"Should Generate: {should_generate}"
-            )
+            print("Should Generate:", should_generate)
 
             if not should_generate:
-                logger.info("Skipping UI generation")
+                print("Generation skipped.")
                 continue
 
             allowed = generation_controller.can_generate()
+
             print("Generation Controller:", allowed)
 
             if not allowed:
-                logger.info("Generation skipped (cooldown)")
+                print("Cooldown active.")
                 continue
-
-            logger.info("Generating Adaptive UI...")
 
             full_code = ""
 
             try:
-                print("========== START GENERATION ==========")
+
+                print("\n========== START GENERATION ==========")
+
                 for token in generator.stream_component(
-                        user_prompt="Generate Adaptive UI",
-                        dom_state=data.get("dom_state", ""),
-                        form_data=data.get("form_data", {}),
-                        session_id=data.get("session_id", ""),
-                        page_name=data.get("page_name", ""),
-                        current_component=data.get("current_component", ""),
-                        active_field=data.get("active_field", ""),
-                        cognitive_score=result["score"],
-                        user_action=data.get("user_action", ""),
+                    user_prompt=f"Generate a {data.get('page_name', 'login')} page using React Functional Component with Tailwind CSS.",
+                    dom_state=data.get("dom_state", ""),
+                    form_data=data.get("form_data", {}),
+                    session_id=data.get("session_id", ""),
+                    page_name=data.get("page_name", ""),
+                    current_component=data.get("current_component", ""),
+                    active_field=data.get("active_field", ""),
+                    cognitive_score=result["score"],
+                    user_action=data.get("user_action", ""),
                 ):
                     full_code += token
 
@@ -174,16 +160,19 @@ async def websocket_endpoint(websocket: WebSocket):
                             "content": token,
                         },
                     )
+
                 print("========== END GENERATION ==========")
 
-                status, message = validate_component(
-                    full_code
-                )
+                print("\n========== GENERATED CODE ==========")
+                print(full_code)
+                print("====================================")
+
+                status, message = validate_component(full_code)
+
+                print("Validation:", status)
+                print(message)
 
                 if not status:
-                    logger.warning(
-                        f"Validation failed: {message}"
-                    )
 
                     await manager.send_json(
                         websocket,
@@ -195,15 +184,12 @@ async def websocket_endpoint(websocket: WebSocket):
 
                     continue
 
-                safe, security_message = validate_security(
-                    full_code
-                )
+                safe, security_message = validate_security(full_code)
+
+                print("Security:", safe)
+                print(security_message)
 
                 if not safe:
-                    logger.warning(
-                        f"Security validation failed: "
-                        f"{security_message}"
-                    )
 
                     await manager.send_json(
                         websocket,
@@ -216,18 +202,16 @@ async def websocket_endpoint(websocket: WebSocket):
                     continue
 
                 filename = (
-                        data.get("page_name", "").title().replace(" ", "")
-                        or "GeneratedComponent"
+                    data.get("page_name", "").title().replace(" ", "")
+                    or "GeneratedComponent"
                 )
 
                 saved_filename = save_component(
                     filename,
-                    full_code
+                    full_code,
                 )
 
-                logger.info(
-                    f"Component saved: {saved_filename}"
-                )
+                print("Saved:", saved_filename)
 
                 await manager.send_json(
                     websocket,
@@ -242,17 +226,20 @@ async def websocket_endpoint(websocket: WebSocket):
                     },
                 )
 
-            except Exception:
+                print("\n========== COMPLETE SENT ==========")
 
-                logger.exception(
-                    "Streaming generation failed."
-                )
+            except Exception as e:
+
+                print("\n========== EXCEPTION ==========")
+                traceback.print_exc()
+                print(e)
+                print("================================")
 
                 await manager.send_json(
                     websocket,
                     {
                         "type": "error",
-                        "message": "Component generation failed.",
+                        "message": str(e),
                     },
                 )
 
@@ -260,4 +247,4 @@ async def websocket_endpoint(websocket: WebSocket):
 
         manager.disconnect(websocket)
 
-        logger.info("Frontend disconnected.")
+        print("Frontend disconnected.")

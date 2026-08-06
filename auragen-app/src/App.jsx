@@ -22,7 +22,8 @@ export default function App() {
 
   const { generatedCode } = telemetry;
   const codeToRender = generatedCode && generatedCode.trim() ? generatedCode : DEFAULT_CODE;
-
+  console.log("========== APP ==========");
+  console.log(generatedCode);
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/40 to-slate-100 p-6">
       <header className="mx-auto mb-8 flex max-w-5xl flex-wrap items-center justify-between gap-4">
