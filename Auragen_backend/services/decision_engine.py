@@ -2,6 +2,10 @@ from utils.logger import logger
 
 
 class DecisionEngine:
+    """
+    Determines which UI layout should be generated
+    based on user context and cognitive score.
+    """
 
     def decide_ui(
         self,
@@ -11,14 +15,22 @@ class DecisionEngine:
         active_field: str = "",
         user_action: str = "",
     ) -> str:
+        """
+        Decide which UI template should be generated.
+        """
 
         page = page_name.strip().lower()
         field = active_field.strip().lower()
         action = user_action.strip().lower()
 
+        # Keep score between 0 and 10
         score = max(0.0, min(score, 10.0))
 
         decision = "simple_ui"
+
+        # ======================================================
+        # Login Page
+        # ======================================================
 
         if page == "login":
 
@@ -31,6 +43,10 @@ class DecisionEngine:
             else:
                 decision = "minimal_login"
 
+        # ======================================================
+        # Dashboard
+        # ======================================================
+
         elif page == "dashboard":
 
             if score < 3:
@@ -41,6 +57,10 @@ class DecisionEngine:
 
             else:
                 decision = "minimal_dashboard"
+
+        # ======================================================
+        # Loan Page
+        # ======================================================
 
         elif page == "loan":
 
@@ -56,6 +76,10 @@ class DecisionEngine:
             else:
                 decision = "loan_form"
 
+        # ======================================================
+        # Registration
+        # ======================================================
+
         elif page == "register":
 
             if score > 6:
@@ -64,25 +88,36 @@ class DecisionEngine:
             else:
                 decision = "registration_form"
 
-        elif page == "profile":
+        # ======================================================
+        # Profile
+        # ======================================================
 
+        elif page == "profile":
             decision = "profile_page"
 
-        elif page == "contact":
+        # ======================================================
+        # Contact
+        # ======================================================
 
+        elif page == "contact":
             decision = "contact_form"
 
-        elif action == "scroll":
+        # ======================================================
+        # User Actions
+        # ======================================================
 
+        elif action == "scroll":
             decision = "compact_layout"
 
         elif action == "input":
-
             decision = "form_layout"
 
         elif action == "click":
-
             decision = "interactive_layout"
+
+        # ======================================================
+        # Default Decision
+        # ======================================================
 
         else:
 
@@ -96,8 +131,10 @@ class DecisionEngine:
                 decision = "minimal_ui"
 
         logger.info(
-            f"Decision='{decision}' "
-            f"(page={page}, score={score}, action={action})"
+            f"Decision='{decision}' | "
+            f"Page='{page}' | "
+            f"Score={score:.2f} | "
+            f"Action='{action}'"
         )
 
         return decision

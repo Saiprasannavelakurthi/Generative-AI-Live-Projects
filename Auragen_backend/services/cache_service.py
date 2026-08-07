@@ -1,41 +1,50 @@
 import hashlib
 import json
 import time
+from typing import Any
 
 from config import CACHE_TTL
 from utils.logger import logger
 
-_cache: dict = {}
+# ==========================================================
+# In-memory Cache
+# ==========================================================
 
-_cache_hits: int = 0
-_cache_misses: int = 0
+_cache: dict[str, dict[str, Any]] = {}
+
+_cache_hits = 0
+_cache_misses = 0
 
 
-def cleanup_expired_cache():
+# ==========================================================
+# Cache Cleanup
+# ==========================================================
+
+def cleanup_expired_cache() -> None:
     """
     Remove expired cache entries.
     """
 
     current_time = time.time()
 
-    expired = [
-
+    expired_keys = [
         key
-
         for key, value in _cache.items()
-
         if current_time - value["created"] > CACHE_TTL
-
     ]
 
-    for key in expired:
+    for key in expired_keys:
         _cache.pop(key, None)
 
-    if expired:
+    if expired_keys:
         logger.info(
-            f"Removed {len(expired)} expired cache entries."
+            f"Removed {len(expired_keys)} expired cache entries."
         )
 
+
+# ==========================================================
+# Cache Key
+# ==========================================================
 
 def create_cache_key(
     prompt: str,
@@ -46,11 +55,13 @@ def create_cache_key(
     current_component: str = "",
     active_field: str = "",
     cognitive_score: float = 0.0,
-    user_action: str = ""
-):
+    user_action: str = "",
+) -> str:
+    """
+    Create a deterministic cache key.
+    """
 
     payload = {
-
         "prompt": prompt,
         "dom_state": dom_state,
         "form_data": form_data,
@@ -59,14 +70,13 @@ def create_cache_key(
         "current_component": current_component,
         "active_field": active_field,
         "cognitive_score": cognitive_score,
-        "user_action": user_action
-
+        "user_action": user_action,
     }
 
     raw = json.dumps(
         payload,
         sort_keys=True,
-        default=str
+        default=str,
     )
 
     return hashlib.sha256(
@@ -74,7 +84,14 @@ def create_cache_key(
     ).hexdigest()
 
 
+# ==========================================================
+# Get Cache
+# ==========================================================
+
 def get_cached(key: str):
+    """
+    Retrieve a cached response.
+    """
 
     global _cache_hits
     global _cache_misses
@@ -83,59 +100,73 @@ def get_cached(key: str):
 
     item = _cache.get(key)
 
-    if not item:
-
+    if item is None:
         _cache_misses += 1
-
         logger.info("Cache MISS")
-
         return None
 
     _cache_hits += 1
-
     logger.info("Cache HIT")
 
     return item["value"]
 
 
-def set_cached(key: str, value: dict):
+# ==========================================================
+# Save Cache
+# ==========================================================
+
+def set_cached(key: str, value: dict) -> None:
+    """
+    Store a response in cache.
+    """
 
     _cache[key] = {
-
         "created": time.time(),
-
-        "value": value
-
+        "value": value,
     }
 
     logger.info("Response cached successfully.")
 
 
-def clear_cache():
+# ==========================================================
+# Clear Cache
+# ==========================================================
+
+def clear_cache() -> None:
+    """
+    Remove all cached responses.
+    """
 
     _cache.clear()
 
     logger.info("Cache cleared.")
 
 
+# ==========================================================
+# Cache Size
+# ==========================================================
+
 def cache_size() -> int:
+    """
+    Return the number of valid cache entries.
+    """
 
     cleanup_expired_cache()
 
     return len(_cache)
 
 
+# ==========================================================
+# Cache Statistics
+# ==========================================================
+
 def cache_stats() -> dict:
     """
-    Return cache statistics.
+    Return cache usage statistics.
     """
 
     return {
-
         "entries": cache_size(),
-
         "hits": _cache_hits,
-
-        "misses": _cache_misses
-
+        "misses": _cache_misses,
     }

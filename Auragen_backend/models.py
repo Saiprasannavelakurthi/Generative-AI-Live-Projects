@@ -1,90 +1,125 @@
 from typing import Any
-from pydantic import BaseModel, Field
 
+from pydantic import BaseModel, Field, ConfigDict
+
+
+# ==========================================================
+# Generate UI Request
+# ==========================================================
 
 class GenerateUIRequest(BaseModel):
     """
-    Request model for generating a React component.
+    Request model for adaptive React UI generation.
     """
 
-    # Existing prompt
+    model_config = ConfigDict(
+        extra="ignore",
+        str_strip_whitespace=True,
+    )
+
+    # ------------------------------------------------------
+    # User Prompt
+    # ------------------------------------------------------
+
     prompt: str = Field(
         ...,
         min_length=5,
         max_length=500,
-        description="Describe the React component to generate."
+        description="Natural language request describing the UI to generate.",
+        examples=["Generate a responsive login form"],
     )
 
-    # Current DOM structure
-    dom_state: str | None = Field(
-        default=None,
-        description="Current DOM structure of the UI."
+    # ------------------------------------------------------
+    # DOM Context
+    # ------------------------------------------------------
+
+    dom_state: str = Field(
+        default="",
+        description="Current DOM structure.",
     )
 
-    # Existing form values
     form_data: dict[str, Any] = Field(
         default_factory=dict,
-        description="Existing form values that must be preserved."
+        description="Current form values that must be preserved.",
     )
 
-    # ==========================
-    # Week 3 - Context Awareness
-    # ==========================
+    # ------------------------------------------------------
+    # Context Awareness
+    # ------------------------------------------------------
 
     session_id: str = Field(
         default="",
-        description="Unique user session ID."
+        max_length=100,
+        description="Unique session identifier.",
     )
 
     page_name: str = Field(
         default="",
-        description="Current page where the user is interacting."
+        max_length=100,
+        description="Current page name.",
     )
 
     current_component: str = Field(
         default="",
-        description="Current React component displayed on the page."
+        max_length=100,
+        description="Current React component.",
     )
 
     active_field: str = Field(
         default="",
-        description="Current input field the user is interacting with."
+        max_length=100,
+        description="Currently focused input field.",
     )
 
     cognitive_score: float = Field(
         default=0.0,
-        description="Current cognitive load score."
+        ge=0,
+        le=10,
+        description="Current cognitive load score (0-10).",
     )
 
     user_action: str = Field(
         default="",
-        description="Latest user action (typing, clicking, scrolling, etc.)."
+        max_length=100,
+        description="Latest user interaction.",
     )
 
 
+# ==========================================================
+# Generate UI Response
+# ==========================================================
+
 class GenerateUIResponse(BaseModel):
     """
-    Response model returned after code generation.
+    Response returned after successful UI generation.
     """
 
-    filename: str
-    generated_code: str
+    model_config = ConfigDict(
+        extra="ignore",
+    )
 
-    # ==========================
-    # Week 3 Response
-    # ==========================
+    filename: str = Field(
+        ...,
+        description="Generated component filename.",
+    )
+
+    generated_code: str = Field(
+        ...,
+        description="Generated React component source code.",
+    )
 
     preserved_data: bool = Field(
         default=True,
-        description="Indicates whether user data was preserved."
+        description="Whether previous user-entered data was preserved.",
     )
 
     page_name: str = Field(
         default="",
-        description="Page for which the UI was generated."
+        description="Target page.",
     )
 
     context_version: int = Field(
         default=3,
-        description="Current context-aware generation version."
+        ge=1,
+        description="Adaptive context engine version.",
     )

@@ -1,16 +1,22 @@
+from typing import Any
+
 from config import MAX_DOM_LENGTH
 from utils.logger import logger
 
 
-def prepare_dom_context(dom_state: str | None) -> str:
+# ==========================================================
+# DOM Context
+# ==========================================================
+
+def prepare_dom_context(dom_state: str |None) -> str:
     """
-    Clean and limit DOM content before sending to the LLM.
+    Clean and limit DOM content before sending it to the LLM.
     """
 
     if not dom_state:
         return "No DOM state provided."
 
-    dom_state = dom_state.strip()
+    dom_state = " ".join(dom_state.split())
 
     if len(dom_state) > MAX_DOM_LENGTH:
         dom_state = dom_state[:MAX_DOM_LENGTH]
@@ -18,11 +24,12 @@ def prepare_dom_context(dom_state: str | None) -> str:
     return dom_state
 
 
-# ====================================================
-# Context Functions
-# ====================================================
+# ==========================================================
+# Session Context Store
+# ==========================================================
 
-_context_store: dict[str, dict] = {}
+_context_store: dict[str, dict[str, Any]] = {}
+
 
 def save_context(
     session_id: str,
@@ -31,8 +38,8 @@ def save_context(
     active_field: str,
     form_data: dict,
     cognitive_score: float,
-    user_action: str
-):
+    user_action: str,
+) -> None:
     """
     Save the latest UI context for a user session.
     """
@@ -41,27 +48,20 @@ def save_context(
         return
 
     _context_store[session_id] = {
-
         "page_name": page_name,
-
         "current_component": current_component,
-
         "active_field": active_field,
-
-        "form_data": dict(form_data),
-
+        "form_data": form_data.copy(),
         "cognitive_score": cognitive_score,
-
-        "user_action": user_action
-
+        "user_action": user_action,
     }
 
-    logger.info(f"Context saved for session: {session_id}")
+    logger.info(f"Context saved: {session_id}")
 
 
-def get_context(session_id: str) -> dict:
+def get_context(session_id: str) -> dict[str, Any]:
     """
-    Return stored context for a session.
+    Return the stored session context.
     """
 
     return _context_store.get(session_id, {})
@@ -69,8 +69,8 @@ def get_context(session_id: str) -> dict:
 
 def update_context(
     session_id: str,
-    new_values: dict
-):
+    new_values: dict[str, Any],
+) -> None:
     """
     Update an existing session context.
     """
@@ -83,24 +83,22 @@ def update_context(
 
     _context_store[session_id].update(new_values)
 
-    logger.info(f"Context updated for session: {session_id}")
+    logger.info(f"Context updated: {session_id}")
 
 
-def clear_context(session_id: str):
+def clear_context(session_id: str) -> None:
     """
     Remove a completed session.
     """
 
     if session_id in _context_store:
-
         del _context_store[session_id]
-
-        logger.info(f"Context cleared for session: {session_id}")
+        logger.info(f"Context cleared: {session_id}")
 
 
 def context_exists(session_id: str) -> bool:
     """
-    Check whether a session context exists.
+    Check whether a session exists.
     """
 
     return session_id in _context_store
@@ -108,7 +106,17 @@ def context_exists(session_id: str) -> bool:
 
 def context_count() -> int:
     """
-    Return total active session contexts.
+    Return the number of active sessions.
     """
 
     return len(_context_store)
+
+
+def clear_all_context() -> None:
+    """
+    Clear every stored session.
+    """
+
+    _context_store.clear()
+
+    logger.info("All session contexts cleared.")

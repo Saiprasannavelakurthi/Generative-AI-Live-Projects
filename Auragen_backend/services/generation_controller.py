@@ -1,17 +1,49 @@
 import time
 
+
 class GenerationController:
+    """
+    Controls how often a UI can be generated.
 
-    def __init__(self):
-        self.last_generation = 0
+    Each browser session has its own cooldown.
+    """
 
-    def can_generate(self):
+    def __init__(self, cooldown_seconds: float = 5):
+        self.cooldown = cooldown_seconds
+        self.last_generation = {}
+
+    def can_generate(self, session_id: str = "default") -> bool:
         now = time.time()
 
-        if now - self.last_generation < 5:
+        last = self.last_generation.get(session_id, 0)
+
+        if now - last < self.cooldown:
             return False
 
-        self.last_generation = now
+        self.last_generation[session_id] = now
+
         return True
+
+    def reset(self, session_id: str = "default"):
+        """
+        Force a session to generate again immediately.
+        """
+        self.last_generation.pop(session_id, None)
+
+    def cleanup(self, max_idle_seconds: float = 600):
+        """
+        Remove inactive sessions.
+        """
+        now = time.time()
+
+        expired = [
+            session
+            for session, last in self.last_generation.items()
+            if now - last > max_idle_seconds
+        ]
+
+        for session in expired:
+            self.last_generation.pop(session, None)
+
 
 generation_controller = GenerationController()

@@ -1,11 +1,20 @@
-import subprocess
 import json
 import os
-import logging
+import subprocess
 
-logger = logging.getLogger(__name__)
+from utils.logger import logger
 
-def validate_with_babel(code: str):
+
+def validate_with_babel(code: str) -> dict:
+    """
+    Validate generated React JSX using the Babel parser.
+
+    Returns:
+        {
+            "valid": bool,
+            "message": str
+        }
+    """
 
     base_dir = os.path.dirname(
         os.path.dirname(os.path.abspath(__file__))
@@ -14,61 +23,92 @@ def validate_with_babel(code: str):
     parser_path = os.path.join(
         base_dir,
         "babel_parser",
-        "parser.js"
+        "parser.js",
     )
 
+    if not os.path.exists(parser_path):
+        return {
+            "valid": False,
+            "message": f"Babel parser not found: {parser_path}",
+        }
+
     try:
+
         result = subprocess.run(
             ["node", parser_path],
             input=code,
             capture_output=True,
             text=True,
-            timeout=10
+            timeout=10,
         )
 
-        # Node/Babel crashed
         if result.returncode != 0:
+
+            logger.error(
+                "Babel parser returned an error."
+            )
+
             return {
                 "valid": False,
-                "message": (
-                    result.stderr.strip()
-                    or "Babel parser failed."
-                )
+                "message": result.stderr.strip()
+                or "Babel parser execution failed.",
             }
 
         output = result.stdout.strip()
 
-        # Nothing returned
         if not output:
+
             return {
                 "valid": False,
-                "message": "Babel parser returned no output."
+                "message": "Babel parser returned empty output.",
             }
 
         try:
-            return json.loads(output)
+
+            parsed = json.loads(output)
+
+            logger.info(
+                "Babel validation completed successfully."
+            )
+
+            return parsed
 
         except json.JSONDecodeError:
+
+            logger.error(
+                "Invalid JSON returned by Babel parser."
+            )
+
             return {
                 "valid": False,
-                "message": f"Invalid Babel parser output: {output}"
+                "message": f"Invalid parser output: {output}",
             }
 
     except FileNotFoundError:
+
+        logger.error("Node.js is not installed.")
+
         return {
             "valid": False,
-            "message": "Node.js was not found."
+            "message": "Node.js executable not found.",
         }
 
     except subprocess.TimeoutExpired:
+
+        logger.error("Babel parser timed out.")
+
         return {
             "valid": False,
-            "message": "Babel validation timed out."
+            "message": "Babel validation timed out.",
         }
 
     except Exception as e:
-        logger.exception("Babel validation failed.")
+
+        logger.exception(
+            "Unexpected Babel validation error."
+        )
+
         return {
             "valid": False,
-            "message": f"Babel validation error: {str(e)}"
+            "message": str(e),
         }

@@ -1,153 +1,167 @@
 DESIGN_RULES = """
-===============================
 AuraGen Design System
-===============================
 
 GENERAL RULES
 
-1. Generate only React Functional Components.
-2. Use JSX only.
-3. Do NOT return Markdown.
-4. Do NOT explain anything.
-5. Do NOT use inline CSS.
-6. Use Tailwind CSS only.
-7. Do NOT include export statements.
-8. Make components responsive.
-9. Keep code production ready.
+1. Generate ONLY React Functional Components.
+2. The root component MUST be named Component.
+3. Use an arrow function.
+4. Return ONLY React component code.
+5. Do NOT return Markdown.
+6. Do NOT return explanations.
+7. Do NOT return comments.
+8. Do NOT return code fences.
+9. Do NOT include import statements.
+10. Do NOT include export statements.
+11. Use JSX only.
+12. Use Tailwind CSS only.
+13. Never use inline styles.
+14. Never use CSS files.
+15. Never use external libraries.
+16. Never use images from the internet.
+17. Never use placeholder APIs.
+18. Never use dummy imports.
+19. Code must compile successfully.
 
-=================================
-COLORS
-=================================
+Component Requirements
 
-Primary:
-bg-blue-600
+- The component must be named Component.
+- Use an arrow function.
+- Return valid JSX.
+- Return a single root element.
+- Do not use React fragments.
+- Do not include import or export statements.
 
-Primary Hover:
-hover:bg-blue-700
-
-Secondary:
-bg-gray-100
-
-Background:
-bg-white
-
-Text:
-text-gray-800
-
-=================================
-BUTTON
-
-className="
-w-full
-bg-blue-600
-hover:bg-blue-700
-text-white
-py-3
-rounded-xl
-font-semibold
-transition
-"
-
-=================================
-INPUT
-
-className="
-w-full
-border
-border-gray-300
-rounded-lg
-p-3
-focus:outline-none
-focus:ring-2
-focus:ring-blue-500
-"
-
-=================================
-LABEL
-
-className="
-block
-text-sm
-font-medium
-mb-2
-text-gray-700
-"
-
-=================================
-CARD
-
-className="
-bg-white
-shadow-lg
-rounded-xl
-p-6
-"
-
-=================================
-PAGE CONTAINER
-
-className="
-min-h-screen
-flex
-justify-center
-items-center
-bg-gray-100
-"
-
-=================================
-HEADING
-
-className="
-text-3xl
-font-bold
-mb-6
-text-center
-"
-
-=================================
-PARAGRAPH
-
-className="
-text-gray-500
-text-center
-mb-4
-"
-
-=================================
-FORM
-
-className="
-space-y-4
-"
-
-=================================
-ICONS
-
-Use Heroicons if icons are needed.
-
-=================================
+========================================
 LAYOUT
 
-Always center forms.
+Use responsive Tailwind CSS.
 
-Maximum width:
+Container
 
-max-w-md
+- min-h-screen
+- flex
+- justify-center
+- items-center
+- bg-gray-100
 
-=================================
+Card
+
+- max-w-md
+- w-full
+- bg-white
+- shadow-lg
+- rounded-xl
+- p-6
+
+========================================
+HEADINGS
+
+Use:
+
+- text-3xl
+- font-bold
+- text-center
+- mb-6
+- text-gray-800
+
+========================================
+LABEL
+
+Use:
+
+- block
+- text-sm
+- font-medium
+- mb-2
+- text-gray-700
+
+========================================
+INPUT
+
+Use:
+
+- w-full
+- border
+- border-gray-300
+- rounded-lg
+- p-3
+- focus:outline-none
+- focus:ring-2
+- focus:ring-blue-500
+
+========================================
+BUTTON
+
+Use:
+
+- w-full
+- bg-blue-600
+- hover:bg-blue-700
+- text-white
+- font-semibold
+- py-3
+- rounded-xl
+- transition
+
+========================================
+FORM
+
+Use:
+
+- space-y-4
+
+========================================
+TEXT
+
+Use:
+
+- text-gray-500
+- text-center
+
+========================================
+ACCESSIBILITY
+
+Every input must include:
+
+- htmlFor
+- id
+- label
+
+Buttons must contain visible text.
+
+========================================
+FORBIDDEN
+
+Never generate:
+
+- import statements
+- export statements
+- ReactDOM
+- createRoot()
+- render()
+- axios
+- fetch()
+- XMLHttpRequest
+- document.write()
+- dangerouslySetInnerHTML
+- eval()
+- new Function()
+- window.location
+- localStorage
+- sessionStorage
+- cookies
+- iframe
+
+========================================
 OUTPUT
 
-Return ONLY valid React JSX.
+Return ONLY valid React component code.
 
-Do NOT return
+Do NOT return:
 
-```jsx
-
-or
-
-Explanation
-
-or
-
-Markdown.
+- Markdown
+- Explanations
+- Comments
+- Code fences
 """

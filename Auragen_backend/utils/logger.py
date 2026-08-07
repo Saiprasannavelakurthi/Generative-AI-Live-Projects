@@ -1,12 +1,65 @@
-import os
 import logging
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
-os.makedirs("logs", exist_ok=True)
+# ==========================================================
+# Log Directory
+# ==========================================================
 
-logging.basicConfig(
-    filename="logs/app.log",
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(message)s",
+LOG_DIR = Path("logs")
+LOG_DIR.mkdir(
+    parents=True,
+    exist_ok=True,
 )
 
-logger = logging.getLogger(__name__)
+LOG_FILE = LOG_DIR / "app.log"
+
+# ==========================================================
+# Logger
+# ==========================================================
+
+logger = logging.getLogger("AuraGen")
+
+logger.setLevel(logging.INFO)
+
+if not logger.handlers:
+
+    formatter = logging.Formatter(
+        "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+    )
+
+    # -----------------------------------------
+    # File Logger
+    # -----------------------------------------
+
+    file_handler = RotatingFileHandler(
+        LOG_FILE,
+        maxBytes=5 * 1024 * 1024,   # 5 MB
+        backupCount=5,
+        encoding="utf-8",
+    )
+
+    file_handler.setFormatter(formatter)
+
+    # -----------------------------------------
+    # Console Logger
+    # -----------------------------------------
+
+    console_handler = logging.StreamHandler()
+
+    console_handler.setFormatter(formatter)
+
+    # -----------------------------------------
+    # Add Handlers
+    # -----------------------------------------
+
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+
+logger.propagate = False
+
+# ==========================================================
+# Startup Log
+# ==========================================================
+
+logger.info("AuraGen Logger Initialized")

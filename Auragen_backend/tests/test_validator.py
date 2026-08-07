@@ -2,7 +2,6 @@ from utils.validator import validate_component
 
 
 def test_empty():
-
     status, message = validate_component("")
 
     assert status is False
@@ -10,10 +9,9 @@ def test_empty():
 
 
 def test_markdown():
-
     code = """
-    ```jsx
-    const Component = () => <div>Hello</div>;
+```jsx
+const Component = () => <div>Hello</div>;
     ```
     """
 
