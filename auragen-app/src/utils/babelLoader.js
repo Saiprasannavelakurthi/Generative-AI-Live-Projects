@@ -1,91 +1,158 @@
 /**
- * babelLoader
- * -----------
- * Loads Babel Standalone and compiles JSX into a React Component.
+ * babelLoader.js
+ *
+ * Loads Babel Standalone dynamically and
+ * compiles AI-generated React components.
  */
 
 const BABEL_SRC =
   "https://unpkg.com/@babel/standalone@7.24.7/babel.min.js";
 
-let babelLoadPromise = null;
+let babelPromise = null;
 
-export function loadBabel() {
+/**
+ * Load Babel Standalone only once.
+ */
+export async function loadBabel() {
   if (typeof window !== "undefined" && window.Babel) {
-    return Promise.resolve(window.Babel);
+    return window.Babel;
   }
 
-  if (babelLoadPromise) {
-    return babelLoadPromise;
+  if (babelPromise) {
+    return babelPromise;
   }
 
-  babelLoadPromise = new Promise((resolve, reject) => {
+  babelPromise = new Promise((resolve, reject) => {
+    const existing = document.querySelector(
+      `script[src="${BABEL_SRC}"]`
+    );
+
+    if (existing) {
+      existing.addEventListener("load", () => {
+        if (window.Babel) {
+          resolve(window.Babel);
+        } else {
+          reject(
+            new Error("Babel failed to initialize.")
+          );
+        }
+      });
+
+      existing.addEventListener("error", () => {
+        reject(
+          new Error("Unable to load Babel.")
+        );
+      });
+
+      return;
+    }
+
     const script = document.createElement("script");
 
     script.src = BABEL_SRC;
     script.async = true;
 
-    script.onload = () => resolve(window.Babel);
+    script.onload = () => {
+      if (window.Babel) {
+        resolve(window.Babel);
+      } else {
+        reject(
+          new Error("Babel failed to initialize.")
+        );
+      }
+    };
 
-    script.onerror = () =>
-      reject(new Error("Failed to load Babel Standalone"));
+    script.onerror = () => {
+      reject(
+        new Error(
+          "Failed to load Babel Standalone."
+        )
+      );
+    };
 
     document.head.appendChild(script);
   });
 
-  return babelLoadPromise;
+  return babelPromise;
 }
 
 /**
- * Defensive cleanup: LLM-generated code sometimes arrives wrapped in
- * markdown fences or containing import/export statements even when the
- * backend is supposed to strip them. `new Function(...)` is not a module
- * context, so `import`/`export` there is a SyntaxError, and stray
- * backticks silently swallow the real code into unused template
- * literals (which is what produced the `"" is not a function` error).
- * This makes the frontend robust even if the backend ever regresses.
+ * Clean AI-generated code before compilation.
  */
-function sanitizeSource(sourceCode) {
-  if (!sourceCode) return sourceCode;
+function sanitizeSource(source = "") {
+  let code = source.trim();
 
-  let code = sourceCode.trim();
+  // Remove Markdown code fences
+  code = code.replace(/^```[a-zA-Z]*\n?/gm, "");
+  code = code.replace(/```$/gm, "");
 
-  // Strip ```jsx / ```javascript / ``` fences
-  code = code.replace(/^```[a-zA-Z]*\s*\n?/, "");
-  code = code.replace(/\n?```\s*$/, "");
-  code = code.trim();
+  // Remove imports
+  code = code.replace(
+    /^\s*import\s.+$/gm,
+    ""
+  );
 
-  // Drop import statements (React & hooks come from scope)
-  code = code.replace(/^\s*import\s+.*?;?\s*$/gm, "");
+  // Remove exports
+  code = code.replace(
+    /^\s*export\s+default\s+/gm,
+    ""
+);
 
-  // Strip `export default` / `export` but keep the declaration itself
-  code = code.replace(/^\s*export\s+default\s+/gm, "");
-  code = code.replace(/^\s*export\s+/gm, "");
+code = code.replace(
+    /^\s*export\s*\{.*\};?$/gm,
+    ""
+);
 
   return code.trim();
 }
 
-export function compileComponent(sourceCode, Babel, scope = {}) {
-  const cleaned = sanitizeSource(sourceCode);
+/**
+ * Compile JSX into a React Component.
+ */
+export function compileComponent(
+  sourceCode,
+  Babel,
+  scope = {}
+) {
+  if (!sourceCode) {
+    throw new Error(
+      "No source code provided."
+    );
+  }
 
-  console.log("========== RAW JSX ==========");
-  console.log(cleaned);
+  if (!Babel) {
+    throw new Error(
+      "Babel is not loaded."
+    );
+  }
 
-  const transformed = Babel.transform(cleaned, {
-    presets: ["react"],
-    filename: "dynamic-component.jsx",
-  }).code;
+  const cleanedCode =
+    sanitizeSource(sourceCode);
 
-  console.log("========== TRANSFORMED ==========");
-  console.log(transformed);
+    console.log("========== SOURCE ==========");
+    console.log(cleanedCode);
 
-  const scopeKeys = Object.keys(scope);
-  const scopeValues = Object.values(scope);
+  const transformed =
+    Babel.transform(cleanedCode, {
+      presets: ["react"],
+      filename: "Component.jsx",
+    }).code;
+    console.log("========== TRANSFORMED ==========");
+    console.log(transformed.code);
+
+  const scopeKeys =
+    Object.keys(scope);
+
+  const scopeValues =
+    Object.values(scope);
 
   const wrappedCode = `
 ${transformed}
 
 if (typeof Component === "undefined") {
-    throw new Error("Component was not created after Babel transform.");
+    throw new Error(
+        "Generated code does not define a Component."
+    );
 }
 
 return Component;
@@ -96,11 +163,19 @@ return Component;
       ...scopeKeys,
       wrappedCode
     );
+    const Component = factory(...scopeValues);
+
+    console.log("Compiled Component:", Component);
+
+    return Component;
 
     return factory(...scopeValues);
-  } catch (err) {
-    console.error("========== COMPILE ERROR ==========");
-    console.error(err);
-    throw err;
+  } catch (error) {
+    console.error(
+      "React component compilation failed:"
+    );
+    console.error(error);
+
+    throw error;
   }
 }

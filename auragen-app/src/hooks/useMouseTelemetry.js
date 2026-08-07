@@ -1,44 +1,97 @@
-import { useCallback } from 'react';
-import { useTelemetrySocket } from './useTelemetrySocket';
-import { useMouseVelocityAndHesitation } from './useMouseVelocityAndHesitation';
-import { useClickPatterns } from './useClickPatterns';
+import { useCallback, useMemo } from "react";
+
+import { useTelemetrySocket } from "./useTelemetrySocket";
+import { useMouseVelocityAndHesitation } from "./useMouseVelocityAndHesitation";
+import { useClickPatterns } from "./useClickPatterns";
 
 /**
  * useMouseTelemetry
- * -----------------
- * Composition root: wires the socket hook (transport), the velocity/
- * hesitation hook, and the click-pattern hook into one API. Each concern
- * lives in its own file and can be used independently if needed.
  *
- * const telemetry = useMouseTelemetry({ wsUrl: 'wss://api.example.com/telemetry' });
- * telemetry -> { x, y, velocity, isHesitating, lastClick, clickCount, connectionStatus, flushNow }
+ * Combines:
+ * 1. Mouse movement tracking
+ * 2. Click tracking
+ * 3. WebSocket telemetry
+ * 4. Cognitive score updates
+ * 5. Generated React component streaming
  */
+
 export function useMouseTelemetry(options = {}) {
-  const { status, enqueue, flush, generatedCode, cognitiveScore } = useTelemetrySocket(options);
+  const {
+    status,
+    enqueue,
+    flush,
+    reconnect,
+    backendMessage,
+    generatedCode,
+    clearGeneratedCode,
+    cognitiveScore,
+    highLoad,
+  } = useTelemetrySocket(options);
 
   const handleEvent = useCallback(
     (event) => {
       enqueue(event);
-      if (event.type === 'click') flush();
+
+      // Flush immediately on clicks
+      if (event.type === "click") {
+        flush();
+      }
     },
     [enqueue, flush]
   );
 
-  const velocity = useMouseVelocityAndHesitation(handleEvent, options);
-  const clicks = useClickPatterns(handleEvent, options);
+  const mouse = useMouseVelocityAndHesitation(
+    handleEvent,
+    options
+  );
 
-  return {
-    x: velocity.x,
-    y: velocity.y,
-    velocity: velocity.velocity,
-    isHesitating: velocity.isHesitating,
-    lastClick: clicks.lastClick,
-    clickCount: clicks.clickCount,
-    connectionStatus: status,
-    flushNow: flush,
-    generatedCode,
-    cognitiveScore,
-  };
+  const clicks = useClickPatterns(
+    handleEvent,
+    options
+  );
+
+  return useMemo(
+    () => ({
+      x: mouse.x,
+      y: mouse.y,
+
+      velocity: mouse.velocity,
+
+      isHesitating: mouse.isHesitating,
+
+      lastClick: clicks.lastClick,
+
+      clickCount: clicks.clickCount,
+
+      connectionStatus: status,
+
+      flushNow: flush,
+
+      reconnect,
+
+      backendMessage,
+
+      generatedCode,
+
+      clearGeneratedCode,
+
+      cognitiveScore,
+
+      highLoad,
+    }),
+    [
+      mouse,
+      clicks,
+      status,
+      flush,
+      reconnect,
+      backendMessage,
+      generatedCode,
+      clearGeneratedCode,
+      cognitiveScore,
+      highLoad,
+    ]
+  );
 }
 
 export default useMouseTelemetry;

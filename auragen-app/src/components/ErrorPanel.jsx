@@ -1,11 +1,38 @@
-import React from 'react';
+import React from "react";
 
-export default function ErrorPanel({ title, message }) {
-  if (!message) return null;
+/**
+ * Displays validation, compilation,
+ * or runtime errors.
+ */
+
+export default function ErrorPanel({
+  title = "Error",
+  message,
+}) {
+  if (!message) {
+    return null;
+  }
+
   return (
-    <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">
-      <p className="font-semibold">{title}</p>
-      <pre className="mt-1 whitespace-pre-wrap font-mono text-xs">{message}</pre>
+    <div
+      role="alert"
+      className="rounded-xl border border-red-200 bg-red-50 p-4 shadow-sm"
+    >
+      <div className="flex items-start gap-3">
+        <span className="text-xl">
+          ⚠️
+        </span>
+
+        <div className="flex-1">
+          <h3 className="text-sm font-semibold text-red-700">
+            {title}
+          </h3>
+
+          <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded-lg bg-red-100 p-3 font-mono text-xs text-red-800">
+            {message}
+          </pre>
+        </div>
+      </div>
     </div>
   );
 }

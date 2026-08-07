@@ -1,13 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
- * useClickPatterns
- * ----------------
- * Tracks click rhythm: how long the cursor paused before each click,
- * whether consecutive clicks form a double-click, and the variance of
- * recent click intervals as a rough rhythm signal.
- *
- * const { lastClick, clickCount } = useClickPatterns(onEvent, options);
+ * Tracks click behavior including:
+ * - Click count
+ * - Double-click detection
+ * - Pause before click
+ * - Click rhythm variance
  */
 
 const DEFAULTS = {
@@ -15,84 +13,190 @@ const DEFAULTS = {
   doubleClickDistancePx: 12,
 };
 
+const MAX_CLICK_HISTORY = 20;
+
 function variance(values) {
-  if (values.length < 2) return null;
-  const mean = values.reduce((a, b) => a + b, 0) / values.length;
-  return values.reduce((a, b) => a + (b - mean) ** 2, 0) / values.length;
+  if (values.length < 2) {
+    return null;
+  }
+
+  const mean =
+    values.reduce((sum, value) => sum + value, 0) /
+    values.length;
+
+  return (
+    values.reduce(
+      (sum, value) => sum + (value - mean) ** 2,
+      0
+    ) / values.length
+  );
 }
 
-function describeTarget(el) {
-  if (!el || !el.tagName) return null;
-  const tag = el.tagName.toLowerCase();
-  const id = el.id ? `#${el.id}` : '';
-  const cls =
-    typeof el.className === 'string' && el.className.trim()
-      ? `.${el.className.trim().split(/\s+/).join('.')}`
-      : '';
-  return `${tag}${id}${cls}`.slice(0, 120);
+function describeTarget(element) {
+  if (!element || !element.tagName) {
+    return null;
+  }
+
+  const tag = element.tagName.toLowerCase();
+
+  const id = element.id
+    ? `#${element.id}`
+    : "";
+
+  const classes =
+    typeof element.className === "string" &&
+    element.className.trim()
+      ? `.${element.className
+          .trim()
+          .split(/\s+/)
+          .join(".")}`
+      : "";
+
+  return `${tag}${id}${classes}`.slice(0, 120);
 }
 
-export function useClickPatterns(onEvent, options = {}) {
-  const config = { ...DEFAULTS, ...options };
+export function useClickPatterns(
+  onEvent,
+  options = {}
+) {
+  const config = {
+    ...DEFAULTS,
+    ...options,
+  };
 
-  const [state, setState] = useState({ lastClick: null, clickCount: 0 });
+  const [state, setState] = useState({
+    lastClick: null,
+    clickCount: 0,
+  });
 
-  const lastMoveTRef = useRef(performance.now());
+  const lastMoveTimeRef = useRef(
+    performance.now()
+  );
+
   const lastClickRef = useRef(null);
-  const clickTimestampsRef = useRef([]);
 
-  const trackMove = useCallback(() => {
-    lastMoveTRef.current = performance.now();
+  const clickHistoryRef = useRef([]);
+
+  const handleMouseMove = useCallback(() => {
+    lastMoveTimeRef.current = performance.now();
   }, []);
 
   const handleClick = useCallback(
-    (e) => {
+    (event) => {
       const now = performance.now();
-      const pauseBeforeClickMs = now - lastMoveTRef.current;
 
-      const prevClick = lastClickRef.current;
+      const pauseBeforeClickMs =
+        now - lastMoveTimeRef.current;
+
       let isDoubleClick = false;
-      if (prevClick) {
-        const dt = now - prevClick.t;
-        const dist = Math.hypot(e.clientX - prevClick.x, e.clientY - prevClick.y);
-        isDoubleClick = dt <= config.doubleClickWindowMs && dist <= config.doubleClickDistancePx;
+
+      if (lastClickRef.current) {
+        const timeDifference =
+          now - lastClickRef.current.t;
+
+        const distance = Math.hypot(
+          event.clientX - lastClickRef.current.x,
+          event.clientY - lastClickRef.current.y
+        );
+
+        isDoubleClick =
+          timeDifference <=
+            config.doubleClickWindowMs &&
+          distance <=
+            config.doubleClickDistancePx;
       }
 
-      clickTimestampsRef.current.push(now);
-      if (clickTimestampsRef.current.length > 20) clickTimestampsRef.current.shift();
+      clickHistoryRef.current.push(now);
+
+      if (
+        clickHistoryRef.current.length >
+        MAX_CLICK_HISTORY
+      ) {
+        clickHistoryRef.current.shift();
+      }
 
       const intervals = [];
-      for (let i = 1; i < clickTimestampsRef.current.length; i++) {
-        intervals.push(clickTimestampsRef.current[i] - clickTimestampsRef.current[i - 1]);
+
+      for (
+        let i = 1;
+        i < clickHistoryRef.current.length;
+        i++
+      ) {
+        intervals.push(
+          clickHistoryRef.current[i] -
+            clickHistoryRef.current[i - 1]
+        );
       }
-      const rhythmVarianceMs = variance(intervals);
+
+      const rhythmVariance =
+        variance(intervals);
 
       const clickEvent = {
-        type: 'click',
-        x: e.clientX,
-        y: e.clientY,
-        target: describeTarget(e.target),
-        pauseBeforeClickMs: Math.round(pauseBeforeClickMs),
+        type: "click",
+        x: event.clientX,
+        y: event.clientY,
+        target: describeTarget(event.target),
+        pauseBeforeClickMs: Math.round(
+          pauseBeforeClickMs
+        ),
         isDoubleClick,
-        rhythmVarianceMs: rhythmVarianceMs !== null ? Math.round(rhythmVarianceMs) : null,
+        rhythmVarianceMs:
+          rhythmVariance === null
+            ? null
+            : Math.round(rhythmVariance),
         timestamp: Date.now(),
       };
 
-      lastClickRef.current = { x: e.clientX, y: e.clientY, t: now };
+      lastClickRef.current = {
+        x: event.clientX,
+        y: event.clientY,
+        t: now,
+      };
+
       onEvent(clickEvent);
-      setState((s) => ({ lastClick: clickEvent, clickCount: s.clickCount + 1 }));
+
+      setState((previous) => ({
+        lastClick: clickEvent,
+        clickCount:
+          previous.clickCount + 1,
+      }));
     },
-    [config.doubleClickWindowMs, config.doubleClickDistancePx, onEvent]
+    [
+      config.doubleClickWindowMs,
+      config.doubleClickDistancePx,
+      onEvent,
+    ]
   );
 
   useEffect(() => {
-    window.addEventListener('mousemove', trackMove, { passive: true });
-    window.addEventListener('click', handleClick, { passive: true });
+    window.addEventListener(
+      "mousemove",
+      handleMouseMove,
+      {
+        passive: true,
+      }
+    );
+
+    window.addEventListener(
+      "click",
+      handleClick,
+      {
+        passive: true,
+      }
+    );
+
     return () => {
-      window.removeEventListener('mousemove', trackMove);
-      window.removeEventListener('click', handleClick);
+      window.removeEventListener(
+        "mousemove",
+        handleMouseMove
+      );
+
+      window.removeEventListener(
+        "click",
+        handleClick
+      );
     };
-  }, [trackMove, handleClick]);
+  }, [handleMouseMove, handleClick]);
 
   return state;
 }
