@@ -1,18 +1,26 @@
-# Environment
-.env
+# Auragen Backend GitIgnore
 
-# Python
+# Environment Variables
+.env
+.env.*
+
+# Python Cache & Build
 __pycache__/
 *.pyc
-
-# PyCharm
-.idea/
-
-# Generated files
-generated/
-generated_UI/
-
-logs/
+*.pyo
+*.pyd
 .pytest_cache/
 .coverage
-.env.*
+
+# IDE
+.idea/
+.vscode/
+
+# Output Data & Logs
+generated/
+generated_UI/
+logs/
+*.log
+
+# Temporary Test Files
+test_request.json
