@@ -12,17 +12,78 @@ def _get_fallback_component(messages: List[Any]) -> str:
     Ensures 100% application resilience.
     """
     user_prompt = ""
-    if messages:
-        last_m = messages[-1]
-        user_prompt = (last_m.content if hasattr(last_m, "content") else str(last_m)).lower()
+    for m in reversed(messages or []):
+        content = str(m.content if hasattr(m, "content") else m).lower()
+        if "generate" in content or "target page" in content or "login" in content or "dashboard" in content or "loan" in content or "profile" in content or "register" in content or "contact" in content:
+            user_prompt = content
+            break
 
-    full_prompt = " ".join(
-        [str(m.content) if hasattr(m, "content") else str(m) for m in messages]
-    ).lower()
+    search_target = user_prompt if user_prompt else " ".join([str(m.content if hasattr(m, "content") else m) for m in (messages or [])]).lower()
 
-    search_target = user_prompt if user_prompt else full_prompt
+    if "login" in search_target or "auth" in search_target:
+        return """const Component = () => {
+    const [username, setUsername] = React.useState("");
+    const [password, setPassword] = React.useState("");
+    const [remember, setRemember] = React.useState(false);
 
-    if "loan" in search_target:
+    return (
+        <div className="flex flex-col items-center justify-center p-6 bg-slate-900/90 rounded-2xl border border-slate-700/60 shadow-2xl backdrop-blur-md max-w-md w-full mx-auto text-slate-200">
+            <div className="w-12 h-12 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center mb-4 text-blue-400 font-bold text-xl">
+                A
+            </div>
+            <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400 mb-1">
+                Welcome Back
+            </h2>
+            <p className="text-slate-400 text-xs mb-6 text-center">
+                Adaptive login view optimized for minimal hesitation
+            </p>
+            <form className="w-full space-y-4" onSubmit={(e) => e.preventDefault()}>
+                <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Username / Email</label>
+                    <input
+                        type="text"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        placeholder="enter your username"
+                        className="w-full px-4 py-2.5 bg-slate-800/90 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-sm"
+                    />
+                </div>
+                <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Password</label>
+                    <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full px-4 py-2.5 bg-slate-800/90 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-sm"
+                    />
+                </div>
+                <div className="flex items-center justify-between text-xs text-slate-400">
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={remember}
+                            onChange={(e) => setRemember(e.target.checked)}
+                            className="rounded bg-slate-800 border-slate-700 text-blue-500 focus:ring-0"
+                        />
+                        <span>Remember me</span>
+                    </label>
+                    <a href="#forgot" className="text-blue-400 hover:text-blue-300 transition-colors">
+                        Forgot Password?
+                    </a>
+                </div>
+                <button
+                    type="submit"
+                    className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium text-sm rounded-lg shadow-lg shadow-blue-500/20 transition-all duration-200 transform active:scale-95"
+                >
+                    Sign In
+                </button>
+            </form>
+        </div>
+    );
+};"""
+
+    if "loan" in search_target or "emi" in search_target:
         return """const Component = () => {
     const [amount, setAmount] = React.useState(10000);
     const [salary, setSalary] = React.useState(5000);
@@ -171,69 +232,6 @@ def _get_fallback_component(messages: List[Any]) -> str:
                     Send Message
                 </button>
             </div>
-        </div>
-    );
-};"""
-
-    if "login" in search_target:
-        return """const Component = () => {
-    const [username, setUsername] = React.useState("");
-    const [password, setPassword] = React.useState("");
-    const [remember, setRemember] = React.useState(false);
-
-    return (
-        <div className="flex flex-col items-center justify-center p-6 bg-slate-900/90 rounded-2xl border border-slate-700/60 shadow-2xl backdrop-blur-md max-w-md w-full mx-auto text-slate-200">
-            <div className="w-12 h-12 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center mb-4 text-blue-400 font-bold text-xl">
-                A
-            </div>
-            <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400 mb-1">
-                Welcome Back
-            </h2>
-            <p className="text-slate-400 text-xs mb-6 text-center">
-                Adaptive login view optimized for minimal hesitation
-            </p>
-            <form className="w-full space-y-4" onSubmit={(e) => e.preventDefault()}>
-                <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">Username / Email</label>
-                    <input
-                        type="text"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        placeholder="enter your username"
-                        className="w-full px-4 py-2.5 bg-slate-800/90 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-sm"
-                    />
-                </div>
-                <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">Password</label>
-                    <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="w-full px-4 py-2.5 bg-slate-800/90 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-sm"
-                    />
-                </div>
-                <div className="flex items-center justify-between text-xs text-slate-400">
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                        <input
-                            type="checkbox"
-                            checked={remember}
-                            onChange={(e) => setRemember(e.target.checked)}
-                            className="rounded bg-slate-800 border-slate-700 text-blue-500 focus:ring-0"
-                        />
-                        <span>Remember me</span>
-                    </label>
-                    <a href="#forgot" className="text-blue-400 hover:text-blue-300 transition-colors">
-                        Forgot Password?
-                    </a>
-                </div>
-                <button
-                    type="submit"
-                    className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium text-sm rounded-lg shadow-lg shadow-blue-500/20 transition-all duration-200 transform active:scale-95"
-                >
-                    Sign In
-                </button>
-            </form>
         </div>
     );
 };"""

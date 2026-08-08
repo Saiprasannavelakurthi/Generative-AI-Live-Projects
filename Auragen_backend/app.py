@@ -57,6 +57,17 @@ app.add_middleware(
 )
 
 # ==========================================================
+# Root Route — Redirect to React Frontend App
+# ==========================================================
+
+@app.get("/")
+def root():
+    """Redirect root browser requests to the React frontend application."""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="http://localhost:5173/")
+
+
+# ==========================================================
 # Routes
 # ==========================================================
 
