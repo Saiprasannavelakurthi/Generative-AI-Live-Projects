@@ -20,6 +20,18 @@ class DecisionEngine:
         """
 
         page = page_name.strip().lower()
+        if "loan" in page:
+            page = "loan"
+        elif "login" in page or "signin" in page or "auth" in page:
+            page = "login"
+        elif "dash" in page:
+            page = "dashboard"
+        elif "register" in page or "signup" in page or "sign-up" in page:
+            page = "register"
+        elif "profile" in page or "account" in page:
+            page = "profile"
+        elif "contact" in page or "support" in page:
+            page = "contact"
         field = active_field.strip().lower()
         action = user_action.strip().lower()
 
@@ -28,20 +40,22 @@ class DecisionEngine:
 
         decision = "simple_ui"
 
+        is_hesitating = (score > 6.0) or (action == "hesitation")
+
         # ======================================================
         # Login Page
         # ======================================================
 
         if page == "login":
 
-            if score < 3:
-                decision = "simple_login"
+            if is_hesitating:
+                decision = "wizard_login"
 
-            elif score < 6:
-                decision = "dashboard"
+            elif score < 3.0:
+                decision = "rich_login"
 
             else:
-                decision = "minimal_login"
+                decision = "simple_login"
 
         # ======================================================
         # Dashboard
@@ -49,14 +63,14 @@ class DecisionEngine:
 
         elif page == "dashboard":
 
-            if score < 3:
+            if is_hesitating:
+                decision = "minimal_dashboard"
+
+            elif score < 3.0:
                 decision = "rich_dashboard"
 
-            elif score < 6:
-                decision = "dashboard"
-
             else:
-                decision = "minimal_dashboard"
+                decision = "dashboard"
 
         # ======================================================
         # Loan Page
@@ -70,8 +84,11 @@ class DecisionEngine:
             elif field == "income":
                 decision = "loan_income_helper"
 
-            elif score > 6:
-                decision = "minimal_loan_form"
+            elif is_hesitating:
+                decision = "wizard_loan_form"
+
+            elif score < 3.0:
+                decision = "rich_loan_form"
 
             else:
                 decision = "loan_form"
@@ -82,8 +99,11 @@ class DecisionEngine:
 
         elif page == "register":
 
-            if score > 6:
-                decision = "minimal_ui"
+            if is_hesitating:
+                decision = "wizard_register"
+
+            elif score < 3.0:
+                decision = "rich_register"
 
             else:
                 decision = "registration_form"
@@ -93,26 +113,43 @@ class DecisionEngine:
         # ======================================================
 
         elif page == "profile":
-            decision = "profile_page"
+
+            if is_hesitating:
+                decision = "minimal_profile"
+
+            elif score < 3.0:
+                decision = "rich_profile"
+
+            else:
+                decision = "profile_page"
 
         # ======================================================
         # Contact
         # ======================================================
 
         elif page == "contact":
-            decision = "contact_form"
+
+            if is_hesitating:
+                decision = "wizard_contact"
+
+            elif score < 3.0:
+                decision = "rich_contact"
+
+            else:
+                decision = "contact_form"
 
         # ======================================================
-        # User Actions
+        # User Actions (no specific page)
+        # Match both short and long forms of action names.
         # ======================================================
 
-        elif action == "scroll":
+        elif action in ("scroll", "scrolling"):
             decision = "compact_layout"
 
-        elif action == "input":
+        elif action in ("input", "typing"):
             decision = "form_layout"
 
-        elif action == "click":
+        elif action in ("click", "clicking"):
             decision = "interactive_layout"
 
         # ======================================================

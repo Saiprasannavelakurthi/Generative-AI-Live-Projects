@@ -1,5 +1,7 @@
 import time
 
+from config import GENERATION_COOLDOWN
+
 
 class GenerationController:
     """
@@ -8,7 +10,7 @@ class GenerationController:
     Each browser session has its own cooldown.
     """
 
-    def __init__(self, cooldown_seconds: float = 5):
+    def __init__(self, cooldown_seconds: float = GENERATION_COOLDOWN):
         self.cooldown = cooldown_seconds
         self.last_generation = {}
 

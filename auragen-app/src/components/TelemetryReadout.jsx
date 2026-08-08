@@ -1,4 +1,3 @@
-import React from "react";
 import CognitiveLoadMeter from "./CognitiveLoadMeter";
 
 const STATUS_COLORS = {
@@ -56,6 +55,12 @@ export default function TelemetryReadout({
         <span>
           🖱 {clickCount} Clicks
         </span>
+
+        {telemetry?.isFallback && (
+          <span className="rounded-full bg-amber-100 border border-amber-300 text-amber-800 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+            ⚠️ LLM Limit (Fallback Active)
+          </span>
+        )}
       </div>
 
       <CognitiveLoadMeter

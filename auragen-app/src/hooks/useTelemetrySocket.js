@@ -10,12 +10,63 @@ const DEFAULTS = {
   reconnectMaxDelayMs: 15000,
 };
 
-export function useTelemetrySocket(options = {}) {
-  const config = {
-    ...DEFAULTS,
-    ...options,
-  };
+// ==========================================================
+// Helpers
+// ==========================================================
 
+function getMinimalDomContext() {
+  try {
+    const inputs = Array.from(
+      document.querySelectorAll("input, textarea, select")
+    );
+
+    const fields = inputs
+      .filter((el) => el.id || el.name || el.placeholder)
+      .map((el) => ({
+        tag: el.tagName.toLowerCase(),
+        type: el.type || "",
+        id: el.id || "",
+        name: el.name || "",
+        placeholder: el.placeholder || "",
+        value: el.value || "",
+      }));
+
+    if (fields.length === 0) {
+      return "No form fields detected.";
+    }
+
+    return JSON.stringify(fields);
+  } catch {
+    return "DOM context unavailable.";
+  }
+}
+
+function getFormData() {
+  try {
+    const inputs = Array.from(
+      document.querySelectorAll("input, textarea, select")
+    );
+
+    const data = {};
+
+    inputs.forEach((el) => {
+      const key = el.id || el.name || el.placeholder;
+      if (key && el.value) {
+        data[key] = el.value;
+      }
+    });
+
+    return data;
+  } catch {
+    return {};
+  }
+}
+
+// ==========================================================
+// Hook
+// ==========================================================
+
+export function useTelemetrySocket(options = {}) {
   const [status, setStatus] = useState("idle");
 
   const [backendMessage, setBackendMessage] =
@@ -24,43 +75,84 @@ export function useTelemetrySocket(options = {}) {
   const [generatedCode, setGeneratedCode] =
     useState("");
 
+  const [isGenerating, setIsGenerating] =
+    useState(false);
+
   const [cognitiveScore, setCognitiveScore] =
     useState(0);
 
   const [highLoad, setHighLoad] =
     useState(false);
 
+  const [isFallback, setIsFallback] =
+    useState(false);
+
+  // Stable ref so onmessage closure always has latest setter (avoids stale closure / HMR issues)
+  const setIsFallbackRef = useRef(setIsFallback);
+  useEffect(() => { setIsFallbackRef.current = setIsFallback; }, [setIsFallback]);
+
   const wsRef = useRef(null);
 
   const bufferRef = useRef([]);
 
+  const tokenStreamBufferRef = useRef("");
+
   const sessionIdRef = useRef(
-    crypto.randomUUID()
+    (() => {
+      try {
+        const stored = localStorage.getItem("auragen_session_id");
+        if (stored) return stored;
+        const fresh = crypto.randomUUID();
+        localStorage.setItem("auragen_session_id", fresh);
+        return fresh;
+      } catch {
+        return crypto.randomUUID();
+      }
+    })()
   );
 
-  const reconnectAttemptRef =
-    useRef(0);
+  const reconnectAttemptRef = useRef(0);
 
-  const reconnectTimeoutRef =
-    useRef(null);
+  const reconnectTimeoutRef = useRef(null);
 
-  const flushIntervalRef =
-    useRef(null);
+  const flushIntervalRef = useRef(null);
 
-  const isUnmountedRef =
-    useRef(false);
+  const isUnmountedRef = useRef(false);
+
+  const cognitiveScoreRef = useRef(0);
+
+  const wsUrlRef = useRef(options.wsUrl ?? DEFAULTS.wsUrl);
+  const reconnectRef = useRef(options.reconnect ?? DEFAULTS.reconnect);
+  const reconnectBaseDelayRef = useRef(options.reconnectBaseDelayMs ?? DEFAULTS.reconnectBaseDelayMs);
+  const reconnectMaxDelayRef = useRef(options.reconnectMaxDelayMs ?? DEFAULTS.reconnectMaxDelayMs);
+  const batchIntervalRef = useRef(options.batchIntervalMs ?? DEFAULTS.batchIntervalMs);
+  const maxBatchSizeRef = useRef(options.maxBatchSize ?? DEFAULTS.maxBatchSize);
+  const maxQueuedBatchesRef = useRef(options.maxQueuedBatches ?? DEFAULTS.maxQueuedBatches);
+
+  const pageNameRef = useRef(options.pageName ?? "login");
+  const activeFieldRef = useRef(options.activeField ?? "");
+
+  useEffect(() => {
+    pageNameRef.current = options.pageName ?? "login";
+  }, [options.pageName]);
+
+  useEffect(() => {
+    activeFieldRef.current = options.activeField ?? "";
+  }, [options.activeField]);
+
+  useEffect(() => {
+    cognitiveScoreRef.current = cognitiveScore;
+  }, [cognitiveScore]);
 
   // ==========================================
   // Flush telemetry events
   // ==========================================
 
-  const flush = useCallback(() => {
-    if (!bufferRef.current.length) {
-      return;
-    }
+  const flush = useCallback((flushOpts = {}) => {
+    const isForce = Boolean(flushOpts.forceGenerate);
 
+    // Always send telemetry batch for 1-second continuous score recalculation
     const batch = [...bufferRef.current];
-
     bufferRef.current = [];
 
     if (
@@ -71,27 +163,23 @@ export function useTelemetrySocket(options = {}) {
         JSON.stringify({
           type: "telemetry_batch",
 
-          session_id:
-            sessionIdRef.current,
+          session_id: sessionIdRef.current,
 
-          page_name: "login",
+          page_name: pageNameRef.current,
 
-          current_component:
-            "Login",
+          current_component: pageNameRef.current,
 
-          active_field: "",
+          active_field: activeFieldRef.current,
 
-          cognitive_score:
-            cognitiveScore,
+          cognitive_score: cognitiveScoreRef.current,
 
-          user_action:
-            batch.at(-1)?.type ??
-            "move",
+          user_action: batch.at(-1)?.type ?? "move",
 
-          dom_state:
-            document.body.innerHTML,
+          force_generate: isForce,
 
-          form_data: {},
+          dom_state: getMinimalDomContext(),
+
+          form_data: getFormData(),
 
           sentAt: Date.now(),
 
@@ -99,21 +187,13 @@ export function useTelemetrySocket(options = {}) {
         })
       );
     } else {
-      bufferRef.current.unshift(
-        ...batch
-      );
+      bufferRef.current.unshift(...batch);
 
-      bufferRef.current =
-        bufferRef.current.slice(
-          -config.maxBatchSize *
-            config.maxQueuedBatches
-        );
+      bufferRef.current = bufferRef.current.slice(
+        -maxBatchSizeRef.current * maxQueuedBatchesRef.current
+      );
     }
-  }, [
-    cognitiveScore,
-    config.maxBatchSize,
-    config.maxQueuedBatches,
-  ]);
+  }, []);
 
   // ==========================================
   // Queue events
@@ -123,29 +203,27 @@ export function useTelemetrySocket(options = {}) {
     (event) => {
       bufferRef.current.push(event);
 
-      if (
-        bufferRef.current.length >=
-        config.maxBatchSize
-      ) {
+      if (bufferRef.current.length >= maxBatchSizeRef.current) {
         flush();
       }
     },
-    [
-      flush,
-      config.maxBatchSize,
-    ]
+    [flush]
   );
 
-    // ==========================================
+  // ==========================================
   // WebSocket Connection
   // ==========================================
 
-  const connect = useCallback(() => {
-    if (!config.wsUrl) {
+  const connectRef = useRef(null);
+
+  // eslint-disable-next-line react-hooks/refs
+  connectRef.current = () => {
+    const wsUrl = wsUrlRef.current;
+
+    if (!wsUrl) {
       return;
     }
 
-    // Prevent duplicate connections
     if (
       wsRef.current &&
       (wsRef.current.readyState === WebSocket.OPEN ||
@@ -156,141 +234,109 @@ export function useTelemetrySocket(options = {}) {
 
     setStatus("connecting");
 
-    console.log("Connecting to:", config.wsUrl);
+    console.log("[AuraGen] Connecting to:", wsUrl);
 
-    const ws = new WebSocket(config.wsUrl);
+    const ws = new WebSocket(wsUrl);
 
     wsRef.current = ws;
 
     ws.onopen = () => {
       reconnectAttemptRef.current = 0;
-
       setStatus("open");
-
-      console.log("✅ WebSocket Connected");
+      console.log("[AuraGen] ✅ WebSocket Connected, session:", sessionIdRef.current);
+      // Send a ping with session_id so backend can replay last generated code
+      try {
+        ws.send(JSON.stringify({
+          type: "session_restore",
+          session_id: sessionIdRef.current,
+        }));
+      } catch { /* ignore */ }
     };
 
     ws.onmessage = (event) => {
       try {
-        console.log("========== RAW WS ==========");
-        console.log(event.data);
-
         const message = JSON.parse(event.data);
-
-        console.log("========== PARSED ==========");
-        console.log(message);
 
         setBackendMessage(message);
 
         switch (message.type) {
 
           case "cognitive_score":
-            console.log("Received cognitive_score");
-
             setCognitiveScore(message.score ?? 0);
-
             setHighLoad(Boolean(message.high_load));
+            break;
 
+          case "generation_start":
+            console.log("[AuraGen] Generation start for page:", message.page_name);
+            setIsGenerating(true);
+            tokenStreamBufferRef.current = "";
             break;
 
           case "token":
-            console.log("Received TOKEN");
-
-            setGeneratedCode((previous) =>
-              previous + (message.content ?? "")
-            );
-
+            tokenStreamBufferRef.current += (message.content ?? "");
             break;
 
           case "complete":
-            console.log("Received COMPLETE");
-
-            setGeneratedCode(
-              message.generated_code ?? ""
-            );
-
+            console.log("[AuraGen] Received COMPLETE");
+            setIsGenerating(false);
+            if (typeof setIsFallbackRef.current === "function") {
+              setIsFallbackRef.current(Boolean(message.is_fallback));
+            }
+            setGeneratedCode(message.generated_code || tokenStreamBufferRef.current);
             break;
 
           case "error":
-            console.error(
-              "Backend Error:",
-              message.message
-            );
-
+            console.error("[AuraGen] Backend Error:", message.message);
+            setIsGenerating(false);
             break;
 
           default:
-            console.log(
-              "Unknown Message:",
-              message
-            );
+            console.log("[AuraGen] Unknown Message:", message);
         }
 
       } catch (error) {
-
-        console.error(
-          "WebSocket Parse Error:",
-          error
-        );
+        console.error("[AuraGen] WebSocket Parse Error:", error);
       }
     };
 
-    ws.onerror = (error) => {
-
-      console.error(
-        "WebSocket Error:",
-        error
-      );
-
+    ws.onerror = () => {
       setStatus("error");
     };
 
     ws.onclose = () => {
-
-      console.log("❌ WebSocket Closed");
-
+      console.log("[AuraGen] ❌ WebSocket Closed");
       setStatus("closed");
-
       wsRef.current = null;
 
-      // Don't reconnect after component unmount
       if (isUnmountedRef.current) {
         return;
       }
 
-      if (!config.reconnect) {
+      if (!reconnectRef.current) {
         return;
       }
 
       reconnectAttemptRef.current += 1;
 
       const delay = Math.min(
-        config.reconnectBaseDelayMs *
-          Math.pow(
-            2,
-            reconnectAttemptRef.current - 1
-          ),
-        config.reconnectMaxDelayMs
+        reconnectBaseDelayRef.current *
+          Math.pow(2, reconnectAttemptRef.current - 1),
+        reconnectMaxDelayRef.current
       );
 
-      console.log(
-        `Reconnect in ${delay} ms`
-      );
-
-      reconnectTimeoutRef.current =
-        setTimeout(() => {
-          connect();
-        }, delay);
+      reconnectTimeoutRef.current = setTimeout(() => {
+        if (!isUnmountedRef.current) {
+          connectRef.current();
+        }
+      }, delay);
     };
+  };
 
-  }, [
-    config.wsUrl,
-    config.reconnect,
-    config.reconnectBaseDelayMs,
-    config.reconnectMaxDelayMs,
-  ]);
+  const connect = useCallback(() => {
+    connectRef.current();
+  }, []);
 
-    // ==========================================
+  // ==========================================
   // Lifecycle
   // ==========================================
 
@@ -301,7 +347,7 @@ export function useTelemetrySocket(options = {}) {
 
     flushIntervalRef.current = setInterval(
       flush,
-      config.batchIntervalMs
+      batchIntervalRef.current
     );
 
     return () => {
@@ -309,10 +355,12 @@ export function useTelemetrySocket(options = {}) {
 
       if (flushIntervalRef.current) {
         clearInterval(flushIntervalRef.current);
+        flushIntervalRef.current = null;
       }
 
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
       }
 
       if (wsRef.current) {
@@ -320,26 +368,22 @@ export function useTelemetrySocket(options = {}) {
         wsRef.current.onmessage = null;
         wsRef.current.onerror = null;
         wsRef.current.onclose = null;
-
         wsRef.current.close();
-
         wsRef.current = null;
       }
     };
-
-  }, [
-    connect,
-    flush,
-    config.batchIntervalMs,
-  ]);
+  }, [connect, flush]);
 
   // ==========================================
   // Manual reconnect
   // ==========================================
 
   const reconnect = useCallback(() => {
-
     if (wsRef.current) {
+      wsRef.current.onopen = null;
+      wsRef.current.onmessage = null;
+      wsRef.current.onerror = null;
+      wsRef.current.onclose = null;
       wsRef.current.close();
       wsRef.current = null;
     }
@@ -347,20 +391,11 @@ export function useTelemetrySocket(options = {}) {
     reconnectAttemptRef.current = 0;
 
     connect();
-
   }, [connect]);
-
-  // ==========================================
-  // Reset generated component
-  // ==========================================
 
   const clearGeneratedCode = useCallback(() => {
     setGeneratedCode("");
   }, []);
-
-  // ==========================================
-  // Return
-  // ==========================================
 
   return {
     status,
@@ -375,11 +410,15 @@ export function useTelemetrySocket(options = {}) {
 
     generatedCode,
 
+    isGenerating,
+
     clearGeneratedCode,
 
     cognitiveScore,
 
     highLoad,
+
+    isFallback,
   };
 }
 

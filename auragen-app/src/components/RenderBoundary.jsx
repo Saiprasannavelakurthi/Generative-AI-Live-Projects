@@ -1,4 +1,4 @@
-import React, { Component } from "react";
+import { Component } from "react";
 
 /**
  * Error Boundary for AI-generated React components.
@@ -70,8 +70,7 @@ export default class RenderBoundary extends Component {
             )}
           </p>
 
-          {process.env.NODE_ENV ===
-            "development" &&
+          {import.meta.env.DEV &&
             this.state.errorInfo && (
               <pre className="mt-4 overflow-auto rounded bg-slate-900 p-3 text-xs text-slate-100">
                 {

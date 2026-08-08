@@ -37,22 +37,13 @@ LAYOUT
 
 Use responsive Tailwind CSS.
 
-Container
+Container:
+- For Forms (Login/Sign Up): w-full max-w-md mx-auto p-6
+- For Portals & Dashboards (Dashboard/Loan/Profile/Registration): w-full max-w-5xl mx-auto p-6
 
-- min-h-screen
-- flex
-- justify-center
-- items-center
-- bg-gray-100
-
-Card
-
-- max-w-md
-- w-full
-- bg-white
-- shadow-lg
-- rounded-xl
-- p-6
+Card:
+- w-full bg-white border border-slate-200 shadow-xl rounded-2xl p-6 transition-all
+- Never render oversized text icons (e.g., do NOT create 128px circle icons with letter 'i'). Keep icons small, elegant, and inside headers (w-6 h-6 or w-8 h-8).
 
 ========================================
 HEADINGS

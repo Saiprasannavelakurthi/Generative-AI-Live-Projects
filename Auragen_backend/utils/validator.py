@@ -1,6 +1,44 @@
 import re
-
 from services.babel_service import validate_with_babel
+
+
+def clean_code(code: str) -> str:
+    """
+    Clean raw LLM generated code by stripping Markdown code block wrappers,
+    leading/trailing backticks, import statements, and export statements.
+    """
+    if not code:
+        return ""
+
+    cleaned = code.strip()
+
+    # Remove leading markdown code block start e.g. ```jsx, ```javascript, ```react, ```
+    cleaned = re.sub(r"^```[a-zA-Z]*\s*", "", cleaned)
+
+    # Remove trailing markdown code block end e.g. ```
+    cleaned = re.sub(r"\s*```$", "", cleaned)
+
+    # Remove any line that is just ```
+    cleaned = re.sub(r"^```\s*$", "", cleaned, flags=re.MULTILINE)
+
+    # Strip import statements
+    cleaned = re.sub(r"^\s*import\s+.*?;?\s*$", "", cleaned, flags=re.MULTILINE)
+
+    # Strip export statements
+    cleaned = re.sub(r"^\s*export\s+(?:default\s+)?.*?;?\s*$", "", cleaned, flags=re.MULTILINE)
+
+    # Fix spaced variable typos e.g. Form Data -> formData
+    cleaned = re.sub(r"\bForm\s+Data\b", "formData", cleaned, flags=re.IGNORECASE)
+
+    # Safe optional chaining for chained .split() array access
+    cleaned = re.sub(r"\.split\(([^)]+)\)\[(\d+)\]\.split\(", r"?.split(\1)?[\2]?.split(", cleaned)
+    cleaned = re.sub(r"\.split\(([^)]+)\)\[(\d+)\]", r"?.split(\1)?[\2]", cleaned)
+
+    # Fix unterminated or long SVG path strings
+    cleaned = re.sub(r'd="[^"\n]*$', r'd="M12 4v16m8-8H4"', cleaned, flags=re.MULTILINE)
+    cleaned = re.sub(r'd="([^"]{100,})"', r'd="M12 4v16m8-8H4"', cleaned)
+
+    return cleaned.strip()
 
 
 def validate_component(code: str) -> tuple[bool, str]:
@@ -18,12 +56,17 @@ def validate_component(code: str) -> tuple[bool, str]:
     code = code.strip()
 
     # ==========================================================
-    # Remove Markdown Fences
+    # Detect Raw Markdown Fences BEFORE stripping them.
+    # If the code starts with a code fence, it means the AI
+    # returned Markdown rather than plain JSX — reject it.
     # ==========================================================
 
-    code = re.sub(r"^```(?:jsx|javascript|js|tsx|ts)?", "", code)
-    code = re.sub(r"```$", "", code)
-    code = code.strip()
+    if re.search(r"^```", code, re.MULTILINE):
+        return (
+            False,
+            "Error: Markdown code fences detected. "
+            "Return plain JSX only, no Markdown.",
+        )
 
     # ==========================================================
     # Root Component Validation

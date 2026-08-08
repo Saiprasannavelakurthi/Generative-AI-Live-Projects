@@ -29,7 +29,7 @@ export function useMouseVelocityAndHesitation(
   const lastPointRef = useRef({
     x: 0,
     y: 0,
-    t: performance.now(),
+    t: 0,
     velocity: 0,
   });
 
@@ -88,8 +88,6 @@ export function useMouseVelocityAndHesitation(
 
           hesitationStartRef.current = null;
         }
-
-        isHesitating = false;
       }
 
       lastPointRef.current = {

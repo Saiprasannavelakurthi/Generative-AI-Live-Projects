@@ -12,6 +12,7 @@ let babelPromise = null;
 
 /**
  * Load Babel Standalone only once.
+ * Subsequent calls return the cached promise.
  */
 export async function loadBabel() {
   if (typeof window !== "undefined" && window.Babel) {
@@ -78,6 +79,7 @@ export async function loadBabel() {
 
 /**
  * Clean AI-generated code before compilation.
+ * Removes Markdown fences, import, and export statements.
  */
 function sanitizeSource(source = "") {
   let code = source.trim();
@@ -86,28 +88,67 @@ function sanitizeSource(source = "") {
   code = code.replace(/^```[a-zA-Z]*\n?/gm, "");
   code = code.replace(/```$/gm, "");
 
-  // Remove imports
+  // Remove import statements (not allowed in sandboxed components)
   code = code.replace(
     /^\s*import\s.+$/gm,
     ""
   );
 
-  // Remove exports
+  // Remove export default
   code = code.replace(
     /^\s*export\s+default\s+/gm,
     ""
-);
+  );
 
-code = code.replace(
+  // Remove named exports
+  code = code.replace(
     /^\s*export\s*\{.*\};?$/gm,
     ""
-);
+  );
+
+  // Fix spaced variable typos e.g. Form Data -> formData
+  code = code.replace(/\bForm\s+Data\b/gi, "formData");
+
+  // Transform unsafe form data .includes() calls into safe operations e.g. (formData['x'] || '').includes(...)
+  code = code.replace(/(formData(?:\[[^\]]+\]|\.[a-zA-Z0-9_$]+))\.includes\(/gi, "($1 || '').includes(");
+  code = code.replace(/(FormaData(?:\[[^\]]+\]|\.[a-zA-Z0-9_$]+))\.includes\(/gi, "($1 || '').includes(");
+
+  // Transform chained .split() array access to optional chaining to prevent split of undefined
+  code = code.replace(/\.split\(([^)]+)\)\[(\d+)\]\.split\(/g, "?.split($1)?.[$2]?.split(");
+  code = code.replace(/\.split\(([^)]+)\)\[(\d+)\]/g, "?.split($1)?.[$2]");
+
+  // Truncate repetitive infinite SVG path strings to prevent string unterminated errors
+  code = code.replace(/d="([^"]{120,})"/g, 'd="M12 4v16m8-8H4"');
+
+  // Remove truncated/incomplete defaultValue JSX attributes that span across lines
+  // e.g. defaultValue={formData['...'].includes('email') ? 'example@example
+  // These cause Babel "Unterminated string constant" errors
+  code = code.replace(/defaultValue=\{[^}]{0,300}\n/g, "");
+
+  // Remove incomplete formData bracket-key string expressions cut mid-way
+  // e.g.  formData['Generated React component...'].includes(...)
+  code = code.replace(/formData\['[^']*\.\.\.[^']*'\]/g, "\"\"");
+
+  // Remove any JSX attribute containing an unterminated single-quoted string
+  // (a string that opens with ' but doesn't close before end-of-line)
+  code = code.replace(/\w+=\{[^}]*'[^']*\n/g, "");
+
+  // Drop lines that contain a truncated ternary — recognizable as ending with
+  // an open quote after the ? operator but no closing quote on the same line
+  code = code.replace(/\?\s*'[^']*\n/g, "? '' ");
 
   return code.trim();
 }
 
 /**
- * Compile JSX into a React Component.
+ * Compile JSX source code into a React Component function.
+ *
+ * Flow:
+ *   AI JSX source
+ *     → sanitizeSource()      strip markdown/imports/exports
+ *     → Babel.transform()     JSX → plain JavaScript
+ *     → new Function()        create factory with injected scope
+ *     → factory(scopeValues)  execute and return Component
  */
 export function compileComponent(
   sourceCode,
@@ -129,16 +170,12 @@ export function compileComponent(
   const cleanedCode =
     sanitizeSource(sourceCode);
 
-    console.log("========== SOURCE ==========");
-    console.log(cleanedCode);
-
+  // Transform JSX to plain JavaScript
   const transformed =
     Babel.transform(cleanedCode, {
       presets: ["react"],
       filename: "Component.jsx",
     }).code;
-    console.log("========== TRANSFORMED ==========");
-    console.log(transformed.code);
 
   const scopeKeys =
     Object.keys(scope);
@@ -146,16 +183,33 @@ export function compileComponent(
   const scopeValues =
     Object.values(scope);
 
+  // Wrap with a Component existence check then return it
   const wrappedCode = `
 ${transformed}
 
-if (typeof Component === "undefined") {
-    throw new Error(
-        "Generated code does not define a Component."
-    );
+let TargetComponent = typeof Component !== "undefined" ? Component : null;
+
+if (!TargetComponent) {
+    const knownNames = [
+        "LoginUI", "DashboardComponent", "FormComponent", "MyComponent", 
+        "App", "Form", "Login", "Dashboard", "LoanForm", "ProfilePage", 
+        "ContactForm", "RegisterForm", "UIComponent"
+    ];
+    for (const name of knownNames) {
+        try {
+            if (typeof eval(name) === "function") {
+                TargetComponent = eval(name);
+                break;
+            }
+        } catch (e) {}
+    }
 }
 
-return Component;
+if (!TargetComponent || typeof TargetComponent !== "function") {
+    throw new Error("Generated code did not define a valid Component function.");
+}
+
+return TargetComponent;
 `;
 
   try {
@@ -163,18 +217,16 @@ return Component;
       ...scopeKeys,
       wrappedCode
     );
-    const Component = factory(...scopeValues);
 
-    console.log("Compiled Component:", Component);
+    const Component = factory(...scopeValues);
 
     return Component;
 
-    return factory(...scopeValues);
   } catch (error) {
     console.error(
-      "React component compilation failed:"
+      "[AuraGen] React component compilation failed:",
+      error
     );
-    console.error(error);
 
     throw error;
   }

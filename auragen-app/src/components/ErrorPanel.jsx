@@ -1,5 +1,3 @@
-import React from "react";
-
 /**
  * Displays validation, compilation,
  * or runtime errors.

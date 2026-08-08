@@ -39,6 +39,7 @@ def validate_with_babel(code: str) -> dict:
             input=code,
             capture_output=True,
             text=True,
+            encoding="utf-8",
             timeout=10,
         )
 

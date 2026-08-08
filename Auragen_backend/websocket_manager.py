@@ -42,17 +42,24 @@ class ConnectionManager:
         self,
         websocket: WebSocket,
         data: dict,
-    ) -> None:
+    ) -> bool:
         """
         Send JSON data to one client.
+        Returns True if successful, False if client disconnected.
         """
+        if websocket not in self.active_connections:
+            return False
+
         try:
             await websocket.send_json(data)
-        except WebSocketDisconnect:
+            return True
+        except (WebSocketDisconnect, RuntimeError):
             self.disconnect(websocket)
+            return False
         except Exception as e:
-            logger.exception(f"Failed to send WebSocket message: {e}")
+            logger.warning(f"Failed to send WebSocket message: {e}")
             self.disconnect(websocket)
+            return False
 
     async def broadcast(self, data: dict) -> None:
         """

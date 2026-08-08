@@ -8,20 +8,30 @@ from utils.logger import logger
 # DOM Context
 # ==========================================================
 
-def prepare_dom_context(dom_state: str |None) -> str:
+import re
+
+def prepare_dom_context(dom_state: str | None) -> str:
     """
-    Clean and limit DOM content before sending it to the LLM.
+    Clean, sanitize, and compress DOM content before sending it to the LLM.
+    Prunes noisy inline SVGs, script tags, style attributes, and data URIs.
     """
 
     if not dom_state:
         return "No DOM state provided."
 
-    dom_state = " ".join(dom_state.split())
+    # Remove script and style elements
+    cleaned = re.sub(r"<(script|style)[^>]*>.*?</\1>", "", dom_state, flags=re.DOTALL | re.IGNORECASE)
+    # Remove SVG path data (d="...") which consumes thousands of tokens
+    cleaned = re.sub(r'd="[^"]+"', 'd="..."', cleaned)
+    # Remove inline base64 image data URIs
+    cleaned = re.sub(r'src="data:image/[^"]+"', 'src="..."', cleaned)
+    # Collapse multiple whitespaces
+    cleaned = " ".join(cleaned.split())
 
-    if len(dom_state) > MAX_DOM_LENGTH:
-        dom_state = dom_state[:MAX_DOM_LENGTH]
+    if len(cleaned) > MAX_DOM_LENGTH:
+        cleaned = cleaned[: MAX_DOM_LENGTH - 3] + "..."
 
-    return dom_state
+    return cleaned
 
 
 # ==========================================================

@@ -1,5 +1,3 @@
-import React from "react";
-
 /**
  * Code editor for manually editing
  * generated React components.

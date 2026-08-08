@@ -1,5 +1,3 @@
-import React from "react";
-
 /**
  * Static fallback UI shown when:
  * - AI generation is still running

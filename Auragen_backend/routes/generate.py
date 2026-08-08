@@ -14,7 +14,7 @@ from utils.context_utils import prepare_dom_context
 from utils.logger import logger
 from utils.save_code import save_component
 from utils.security_validator import validate_security
-from utils.validator import validate_component
+from utils.validator import validate_component, clean_code
 
 
 router = APIRouter(
@@ -209,8 +209,13 @@ def generate_ui_stream(request: GenerateUIRequest):
                 )
             import re
 
+            full_code = clean_code(full_code)
+
             # Wrap raw JSX if Groq did not generate a Component
-            if not re.search(r"const\s+Component\s*=", full_code):
+            if not (
+                re.search(r"const\s+Component\s*=", full_code)
+                or re.search(r"function\s+Component\s*\(", full_code)
+            ):
                 full_code = f"""const Component = () => {{
                 return (
             {full_code}

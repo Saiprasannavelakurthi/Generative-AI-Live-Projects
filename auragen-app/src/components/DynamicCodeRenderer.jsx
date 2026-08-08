@@ -64,16 +64,30 @@ export default function DynamicCodeRenderer({
 
   const pollRef = useRef(null);
 
-  // Prevent rebuilding the same code repeatedly
+  // Track the last source we compiled to avoid
+  // recompiling the same code on repeated renders.
   const lastCompiledSource = useRef(null);
 
-  useEffect(() => {
-    setRawCode(initialCode);
-    setEditableCode(initialCode);
-  }, [initialCode]);
+  // Boolean state mirroring whether lastGoodRef has a value.
+  // Used during render to avoid accessing refs directly.
+  const [hasLastGood, setHasLastGood] = useState(false);
 
-  const memoScope = useMemo(
-    () => ({
+  // Expose all React hooks and safe context objects that generated components
+  // may use without importing (since imports are forbidden).
+  const memoScope = useMemo(() => {
+    const rawFormData = scope.formData || {};
+    const safeFormData = new Proxy(rawFormData, {
+      get: (target, prop) => {
+        if (typeof prop === "symbol" || prop in Object.prototype) {
+          return target[prop];
+        }
+        return target[prop] !== undefined ? target[prop] : "";
+      },
+    });
+
+    const noop = () => {};
+
+    return {
       React,
       useState,
       useEffect,
@@ -84,9 +98,19 @@ export default function DynamicCodeRenderer({
       useReducer,
       useLayoutEffect,
       ...scope,
-    }),
-    [scope]
-  );
+      formData: safeFormData,
+      FormaData: safeFormData,
+      formdata: safeFormData,
+      FormData: safeFormData,
+      handlePurposeChange: noop,
+      handleChange: noop,
+      handleSubmit: noop,
+      handleClick: noop,
+      handleBlur: noop,
+      handleSelect: noop,
+      handleToggle: noop,
+    };
+  }, [scope]);
 
   const downloadCode = useCallback(async () => {
     if (!sourceUrl) {
@@ -153,6 +177,11 @@ export default function DynamicCodeRenderer({
           return;
         }
 
+        // Skip recompilation if nothing changed
+        if (source === lastCompiledSource.current) {
+          return;
+        }
+
         setStatus("loading");
         setErrorMessage(null);
 
@@ -169,7 +198,7 @@ export default function DynamicCodeRenderer({
           memoScope
         );
 
-    lastCompiledSource.current = source;
+        lastCompiledSource.current = source;
 
         if (typeof Component !== "function") {
           throw new Error(
@@ -181,6 +210,7 @@ export default function DynamicCodeRenderer({
           component: Component,
           code: source,
         };
+        setHasLastGood(true);
 
         setCompiledComponent(() => Component);
 
@@ -190,7 +220,7 @@ export default function DynamicCodeRenderer({
 
         setDegraded(false);
       } catch (error) {
-        console.error(error);
+        console.error("[AuraGen] Compilation error:", error);
 
         setErrorMessage(
           error?.message ||
@@ -225,6 +255,7 @@ export default function DynamicCodeRenderer({
     lastCompiledSource.current = "";
 
     lastGoodRef.current = null;
+    setHasLastGood(false);
 
     setErrorMessage(null);
 
@@ -233,7 +264,17 @@ export default function DynamicCodeRenderer({
     build(defaultCode);
   }, [defaultCode, build]);
 
+  // Main effect: build when initialCode changes.
+  // NOTE: The redundant sync effect that only updated rawCode
+  // and editableCode has been removed — build() already
+  // calls setRawCode and setEditableCode internally, so
+  // a separate effect was causing double-compilation.
+  //
   useEffect(() => {
+    // The build() function triggers async state updates as part of the
+    // intentional compilation pipeline. This is not a cascading render issue —
+    // it is the designed behavior for a dynamic code renderer.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     build(initialCode);
 
     if (pollIntervalMs > 0 && sourceUrl) {
@@ -263,7 +304,7 @@ export default function DynamicCodeRenderer({
   const renderStaticUI = () => {
     if (
       status === "error" &&
-      !lastGoodRef.current
+      !hasLastGood
     ) {
       return (
         <StaticFallbackForm

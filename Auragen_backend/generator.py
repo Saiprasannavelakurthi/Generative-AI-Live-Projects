@@ -13,6 +13,8 @@ from services.groq_service import groq_service
 from services.decision_engine import decision_engine
 from services.prompt_builder import prompt_builder
 
+from utils.validator import clean_code
+from utils.context_utils import prepare_dom_context
 from utils.logger import logger
 
 
@@ -97,72 +99,46 @@ class ReactGenerator:
             user_action=user_action,
         )
 
-        print("\n========== VALUES BEFORE format_messages ==========")
-        print("combined_prompt:")
-        print(combined_prompt)
+        logger.debug(f"Combined prompt: {combined_prompt[:200]}")
+        logger.debug(f"Page: {page_name}, Component: {current_component}, Field: {active_field}")
+        logger.debug(f"DOM state (first 200): {(dom_state or '')[:200]}")
+        logger.debug(f"Form data: {form_data}")
 
-        print("\npage_name:")
-        print(page_name)
-
-        print("\ncurrent_component:")
-        print(current_component)
-
-        print("\nactive_field:")
-        print(active_field)
-
-        print("\ndom_state (first 500 chars):")
-        print((dom_state or "")[:500])
-
-        print("\nform_data:")
-        print(form_data)
-
+        comp_snippet = (current_component[:300] + "...") if len(current_component) > 300 else current_component
+        dom_snippet = prepare_dom_context(dom_state)
         try:
-            print("======== INPUT VARIABLES ========")
-            print({
-                "user_prompt": combined_prompt,
-                "dom_state": dom_state,
-                "form_data": form_data,
-                "session_id": session_id,
-                "page_name": page_name,
-                "current_component": current_component,
-                "active_field": active_field,
-                "cognitive_score": cognitive_score,
-                "user_action": user_action,
-            })
             messages = prompt_template.format_messages(
                 user_prompt=combined_prompt,
-                dom_state=dom_state or "No DOM state provided.",
+                dom_state=dom_snippet,
                 form_data=form_data,
                 session_id=session_id,
                 page_name=page_name,
-                current_component=current_component,
+                current_component=comp_snippet,
                 active_field=active_field,
                 cognitive_score=cognitive_score,
                 user_action=user_action,
             )
         except Exception as e:
-            print("\n========== FORMAT ERROR ==========")
-            print(type(e).__name__)
-            print(e)
+            logger.exception(f"Prompt formatting failed: {e}")
             raise
 
         jsx_code = groq_service.generate(messages).strip()
+        jsx_code = clean_code(jsx_code)
 
-        print("\n===== RAW GROQ =====")
-        print(jsx_code)
-        print("====================")
+        logger.debug(f"Groq response (first 300): {jsx_code[:300]}")
 
-        # Ensure the generated output follows
-        # AuraGen's required component structure.
-        if not re.search(r"const\s+Component\s*=", jsx_code):
-            jsx_code = f"""const Component = () => {{
-    return (
-{jsx_code}
-    );
-}};"""
-            print("\n===== AFTER WRAPPER =====")
-            print(jsx_code)
-            print("=========================")
+        # Ensure the generated output follows AuraGen's required Component structure.
+        if not (
+            re.search(r"const\s+Component\s*=", jsx_code)
+            or re.search(r"function\s+Component\s*\(", jsx_code)
+        ):
+            # Check if there is an alternative root function/const defined e.g. const LoginUI = ...
+            match = re.search(r"(?:const|function)\s+([A-Z][a-zA-Z0-9_]*)\s*(?:=|\()", jsx_code)
+            if match and match.group(1) not in ("React", "Fragment"):
+                root_name = match.group(1)
+                jsx_code = re.sub(rf"\b{root_name}\b", "Component", jsx_code)
+            else:
+                jsx_code = f"const Component = () => {{\n    return (\n{jsx_code}\n    );\n}};"
 
         elapsed = round(time.perf_counter() - start, 2)
 
@@ -209,6 +185,8 @@ class ReactGenerator:
     ):
         """
         Stream the generated React component token-by-token.
+        This is a synchronous generator — call from a thread
+        using asyncio.to_thread() in async contexts.
         """
 
         if not user_prompt.strip():
@@ -225,53 +203,27 @@ class ReactGenerator:
             user_action=user_action,
         )
 
-        print("\n========== VALUES BEFORE format_messages ==========")
-        print("combined_prompt:")
-        print(combined_prompt)
+        logger.debug(f"Stream combined prompt: {combined_prompt[:200]}")
+        logger.debug(f"Page: {page_name}, Component: {current_component}, Field: {active_field}")
+        logger.debug(f"DOM state (first 200): {(dom_state or '')[:200]}")
+        logger.debug(f"Form data: {form_data}")
 
-        print("\npage_name:")
-        print(page_name)
-
-        print("\ncurrent_component:")
-        print(current_component)
-
-        print("\nactive_field:")
-        print(active_field)
-
-        print("\ndom_state (first 500 chars):")
-        print((dom_state or "")[:500])
-
-        print("\nform_data:")
-        print(form_data)
-
+        comp_snippet = (current_component[:300] + "...") if len(current_component) > 300 else current_component
+        dom_snippet = prepare_dom_context(dom_state)
         try:
-            print("======== INPUT VARIABLES ========")
-            print({
-                "user_prompt": combined_prompt,
-                "dom_state": dom_state,
-                "form_data": form_data,
-                "session_id": session_id,
-                "page_name": page_name,
-                "current_component": current_component,
-                "active_field": active_field,
-                "cognitive_score": cognitive_score,
-                "user_action": user_action,
-            })
             messages = prompt_template.format_messages(
                 user_prompt=combined_prompt,
-                dom_state=dom_state or "No DOM state provided.",
+                dom_state=dom_snippet,
                 form_data=form_data,
                 session_id=session_id,
                 page_name=page_name,
-                current_component=current_component,
+                current_component=comp_snippet,
                 active_field=active_field,
                 cognitive_score=cognitive_score,
                 user_action=user_action,
             )
         except Exception as e:
-            print("\n========== FORMAT ERROR ==========")
-            print(type(e).__name__)
-            print(e)
+            logger.exception(f"Stream prompt formatting failed: {e}")
             raise
 
         for token in groq_service.stream_generate(messages):

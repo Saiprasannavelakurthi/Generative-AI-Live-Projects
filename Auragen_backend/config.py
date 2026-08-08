@@ -1,4 +1,5 @@
 import os
+# pyrefly: ignore [missing-import]
 from dotenv import load_dotenv
 
 # ==========================================================
@@ -24,8 +25,13 @@ if not GROQ_API_KEY:
 
 MODEL_NAME = os.getenv(
     "MODEL_NAME",
-    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
 )
+
+FALLBACK_MODELS = [
+    "llama-3.1-8b-instant",
+    "llama-3.3-70b-versatile",
+]
 
 TEMPERATURE = float(
     os.getenv("TEMPERATURE", "0.2")
@@ -48,7 +54,7 @@ CACHE_TTL = int(
 # ==========================================================
 
 MAX_DOM_LENGTH = int(
-    os.getenv("MAX_DOM_LENGTH", "20000")
+    os.getenv("MAX_DOM_LENGTH", "400")
 )
 
 # ==========================================================
@@ -56,7 +62,7 @@ MAX_DOM_LENGTH = int(
 # ==========================================================
 
 GENERATION_COOLDOWN = int(
-    os.getenv("GENERATION_COOLDOWN", "5")
+    os.getenv("GENERATION_COOLDOWN", "3")
 )
 
 # ==========================================================

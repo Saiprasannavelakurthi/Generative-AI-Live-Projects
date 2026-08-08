@@ -69,9 +69,7 @@ export function useClickPatterns(
     clickCount: 0,
   });
 
-  const lastMoveTimeRef = useRef(
-    performance.now()
-  );
+  const lastMoveTimeRef = useRef(null);
 
   const lastClickRef = useRef(null);
 
@@ -86,7 +84,9 @@ export function useClickPatterns(
       const now = performance.now();
 
       const pauseBeforeClickMs =
-        now - lastMoveTimeRef.current;
+        lastMoveTimeRef.current !== null
+          ? now - lastMoveTimeRef.current
+          : 0;
 
       let isDoubleClick = false;
 

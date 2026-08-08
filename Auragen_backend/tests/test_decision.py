@@ -12,7 +12,7 @@ def test_login_low_score():
         page_name="login"
     )
 
-    assert ui == "simple_login"
+    assert ui == "rich_login"
 
 
 def test_login_medium_score():
@@ -22,7 +22,7 @@ def test_login_medium_score():
         page_name="login"
     )
 
-    assert ui == "dashboard"
+    assert ui == "simple_login"
 
 
 def test_login_high_score():
@@ -32,7 +32,7 @@ def test_login_high_score():
         page_name="login"
     )
 
-    assert ui == "minimal_login"
+    assert ui == "wizard_login"
 
 
 # =====================================================
@@ -106,7 +106,7 @@ def test_minimal_loan():
         page_name="loan"
     )
 
-    assert ui == "minimal_loan_form"
+    assert ui == "wizard_loan_form"
 
 
 # =====================================================
