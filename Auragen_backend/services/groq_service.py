@@ -1,11 +1,12 @@
 import time
+from typing import List, Any, Generator
 from langchain_groq import ChatGroq
 
 from config import GROQ_API_KEY, MODEL_NAME, FALLBACK_MODELS, TEMPERATURE, MAX_TOKENS
 from utils.logger import logger
 
 
-def _get_fallback_component(messages: list) -> str:
+def _get_fallback_component(messages: List[Any]) -> str:
     """
     Generate a smart contextual template component when all external LLMs fail or are rate-limited.
     Ensures 100% application resilience.
@@ -421,7 +422,7 @@ class GroqService:
             max_tokens=MAX_TOKENS,
         )
 
-    def generate(self, messages: list) -> str:
+    def generate(self, messages: List[Any]) -> str:
         """
         Generate a complete React component with multi-model retry fallback.
         """
@@ -455,7 +456,7 @@ class GroqService:
         logger.error("All Groq models failed/rate-limited. Switching to Smart Fallback Component.")
         return _get_fallback_component(messages)
 
-    def stream_generate(self, messages: list):
+    def stream_generate(self, messages: List[Any]) -> Generator[str, None, None]:
         """
         Stream React component tokens from Groq with multi-model retry fallback.
         """
