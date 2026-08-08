@@ -343,6 +343,16 @@ python -m pytest
 - **Multi-Model Resilience** — automatic cascading fallback across Groq models
 - **Smart Fallback System** — contextual JSX templates per page when all LLMs are unavailable
 
+## 👥 Authors & Contributors
+
+### 🖥️ Frontend Engineering
+- **Vembarasan Nagarajan**
+- **Velakurthi Saiprasanna**
+
+### ⚙️ Backend Engineering
+- **Aathi Narayanamoorthi**
+- **Karkuvel**
+
 ---
 
 ## 📈 Roadmap
