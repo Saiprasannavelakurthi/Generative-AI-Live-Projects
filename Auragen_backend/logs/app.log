@@ -33451,3 +33451,52 @@ For troubleshooting, visit: https://python.langchain.com/docs/troubleshooting/er
 2026-08-08 17:46:51,766 | INFO | AuraGen | Invoking Groq model: llama-3.3-70b-versatile
 2026-08-08 17:46:51,766 | INFO | AuraGen | Groq generation (llama-3.3-70b-versatile) completed in 0.0s.
 2026-08-08 17:46:51,864 | INFO | AuraGen | Babel validation completed successfully.
+2026-08-08 17:55:12,396 | INFO | AuraGen | AuraGen Logger Initialized
+2026-08-08 17:55:30,429 | INFO | AuraGen | AuraGen Logger Initialized
+2026-08-08 17:55:30,988 | INFO | AuraGen | Cache cleared.
+2026-08-08 17:55:30,989 | INFO | AuraGen | Response cached successfully.
+2026-08-08 17:55:30,989 | INFO | AuraGen | Cache HIT
+2026-08-08 17:55:30,990 | INFO | AuraGen | Cache cleared.
+2026-08-08 17:55:30,991 | INFO | AuraGen | Cache cleared.
+2026-08-08 17:55:30,993 | INFO | AuraGen | Cache cleared.
+2026-08-08 17:55:30,994 | INFO | AuraGen | Cache cleared.
+2026-08-08 17:55:30,996 | INFO | AuraGen | Cache cleared.
+2026-08-08 17:55:30,997 | INFO | AuraGen | Cache MISS
+2026-08-08 17:55:30,998 | INFO | AuraGen | Cache cleared.
+2026-08-08 17:55:30,998 | INFO | AuraGen | Response cached successfully.
+2026-08-08 17:55:31,011 | INFO | AuraGen | Context saved: test_session
+2026-08-08 17:55:31,013 | INFO | AuraGen | Context cleared: test_session
+2026-08-08 17:55:31,013 | INFO | AuraGen | Context saved: test_session
+2026-08-08 17:55:31,014 | INFO | AuraGen | Context updated: test_session
+2026-08-08 17:55:31,015 | INFO | AuraGen | Context cleared: test_session
+2026-08-08 17:55:31,016 | INFO | AuraGen | Context saved: test_session
+2026-08-08 17:55:31,017 | INFO | AuraGen | Context cleared: test_session
+2026-08-08 17:55:31,017 | INFO | AuraGen | Context saved: test_session
+2026-08-08 17:55:31,017 | INFO | AuraGen | Context cleared: test_session
+2026-08-08 17:55:31,019 | INFO | AuraGen | Context saved: session1
+2026-08-08 17:55:31,019 | INFO | AuraGen | Context saved: session2
+2026-08-08 17:55:31,019 | INFO | AuraGen | Context cleared: session1
+2026-08-08 17:55:31,019 | INFO | AuraGen | Context cleared: session2
+2026-08-08 17:55:31,020 | INFO | AuraGen | Decision='rich_login' | Page='login' | Score=2.00 | Action=''
+2026-08-08 17:55:31,022 | INFO | AuraGen | Decision='simple_login' | Page='login' | Score=5.00 | Action=''
+2026-08-08 17:55:31,023 | INFO | AuraGen | Decision='wizard_login' | Page='login' | Score=8.00 | Action=''
+2026-08-08 17:55:31,024 | INFO | AuraGen | Decision='rich_dashboard' | Page='dashboard' | Score=2.00 | Action=''
+2026-08-08 17:55:31,025 | INFO | AuraGen | Decision='minimal_dashboard' | Page='dashboard' | Score=8.00 | Action=''
+2026-08-08 17:55:31,026 | INFO | AuraGen | Decision='registration_form' | Page='register' | Score=3.00 | Action=''
+2026-08-08 17:55:31,028 | INFO | AuraGen | Decision='loan_salary_helper' | Page='loan' | Score=5.00 | Action=''
+2026-08-08 17:55:31,029 | INFO | AuraGen | Decision='loan_income_helper' | Page='loan' | Score=5.00 | Action=''
+2026-08-08 17:55:31,031 | INFO | AuraGen | Decision='wizard_loan_form' | Page='loan' | Score=8.00 | Action=''
+2026-08-08 17:55:31,033 | INFO | AuraGen | Decision='compact_layout' | Page='' | Score=5.00 | Action='scrolling'
+2026-08-08 17:55:31,034 | INFO | AuraGen | Decision='form_layout' | Page='' | Score=5.00 | Action='typing'
+2026-08-08 17:55:31,035 | INFO | AuraGen | Decision='interactive_layout' | Page='' | Score=5.00 | Action='clicking'
+2026-08-08 17:55:31,037 | INFO | AuraGen | Decision='minimal_ui' | Page='' | Score=8.00 | Action=''
+2026-08-08 17:55:31,039 | INFO | AuraGen | Cache MISS
+2026-08-08 17:55:31,039 | INFO | AuraGen | Decision='simple_ui' | Page='' | Score=0.00 | Action=''
+2026-08-08 17:55:31,040 | INFO | AuraGen | Response cached successfully.
+2026-08-08 17:55:31,040 | INFO | AuraGen | Generated: Login | Page= | Time=0.0s
+2026-08-08 17:55:31,062 | INFO | AuraGen | Invoking Groq model: llama-3.1-8b-instant
+2026-08-08 17:55:31,062 | WARNING | AuraGen | Groq generation with model llama-3.1-8b-instant failed: Unsupported message type: <class 'unittest.mock.MagicMock'>
+For troubleshooting, visit: https://python.langchain.com/docs/troubleshooting/errors/MESSAGE_COERCION_FAILURE . Trying next fallback model...
+2026-08-08 17:55:31,062 | INFO | AuraGen | Invoking Groq model: llama-3.3-70b-versatile
+2026-08-08 17:55:31,062 | INFO | AuraGen | Groq generation (llama-3.3-70b-versatile) completed in 0.0s.
+2026-08-08 17:55:31,165 | INFO | AuraGen | Babel validation completed successfully.
