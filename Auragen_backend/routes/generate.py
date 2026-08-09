@@ -207,20 +207,7 @@ def generate_ui_stream(request: GenerateUIRequest):
                         "content": token,
                     },
                 )
-            import re
-
             full_code = clean_code(full_code)
-
-            # Wrap raw JSX if Groq did not generate a Component
-            if not (
-                re.search(r"const\s+Component\s*=", full_code)
-                or re.search(r"function\s+Component\s*\(", full_code)
-            ):
-                full_code = f"""const Component = () => {{
-                return (
-            {full_code}
-                );
-            }};"""
             status, message = validate_component(
                 full_code
             )

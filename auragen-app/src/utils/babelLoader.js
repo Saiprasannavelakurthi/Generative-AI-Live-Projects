@@ -120,22 +120,8 @@ function sanitizeSource(source = "") {
   // Truncate repetitive infinite SVG path strings to prevent string unterminated errors
   code = code.replace(/d="([^"]{120,})"/g, 'd="M12 4v16m8-8H4"');
 
-  // Remove truncated/incomplete defaultValue JSX attributes that span across lines
-  // e.g. defaultValue={formData['...'].includes('email') ? 'example@example
-  // These cause Babel "Unterminated string constant" errors
-  code = code.replace(/defaultValue=\{[^}]{0,300}\n/g, "");
-
   // Remove incomplete formData bracket-key string expressions cut mid-way
-  // e.g.  formData['Generated React component...'].includes(...)
   code = code.replace(/formData\['[^']*\.\.\.[^']*'\]/g, "\"\"");
-
-  // Remove any JSX attribute containing an unterminated single-quoted string
-  // (a string that opens with ' but doesn't close before end-of-line)
-  code = code.replace(/\w+=\{[^}]*'[^']*\n/g, "");
-
-  // Drop lines that contain a truncated ternary — recognizable as ending with
-  // an open quote after the ? operator but no closing quote on the same line
-  code = code.replace(/\?\s*'[^']*\n/g, "? '' ");
 
   return code.trim();
 }

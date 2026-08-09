@@ -23,9 +23,13 @@ export function useMouseTelemetry(options = {}) {
     reconnect,
     backendMessage,
     generatedCode,
+    isGenerating,
     clearGeneratedCode,
     cognitiveScore,
     highLoad,
+    isFallback,
+    decision,
+    generationTime,
   } = useTelemetrySocket(options);
 
   const handleEvent = useCallback(
@@ -65,6 +69,8 @@ export function useMouseTelemetry(options = {}) {
 
       connectionStatus: status,
 
+      enqueue,
+
       flushNow: flush,
 
       reconnect,
@@ -73,23 +79,36 @@ export function useMouseTelemetry(options = {}) {
 
       generatedCode,
 
+      isGenerating,
+
       clearGeneratedCode,
 
       cognitiveScore,
 
       highLoad,
+
+      isFallback,
+
+      decision,
+
+      generationTime,
     }),
     [
       mouse,
       clicks,
       status,
+      enqueue,
       flush,
       reconnect,
       backendMessage,
       generatedCode,
+      isGenerating,
       clearGeneratedCode,
       cognitiveScore,
       highLoad,
+      isFallback,
+      decision,
+      generationTime,
     ]
   );
 }

@@ -2,7 +2,7 @@ import time
 from typing import List, Any, Generator
 from langchain_groq import ChatGroq
 
-from config import GROQ_API_KEY, MODEL_NAME, FALLBACK_MODELS, TEMPERATURE, MAX_TOKENS
+from config import GROQ_API_KEY, GROQ_API_KEYS, MODEL_NAME, FALLBACK_MODELS, TEMPERATURE, MAX_TOKENS
 from utils.logger import logger
 
 
@@ -236,40 +236,48 @@ def _get_fallback_component(messages: List[Any]) -> str:
     );
 };"""
 
-    return """const Component = () => {
-    return (
-        <div className="p-6 bg-white rounded-2xl border border-slate-200 shadow-xl max-w-lg w-full mx-auto text-slate-800">
-            <h2 className="text-lg font-bold text-indigo-600 mb-2">Adaptive Component Ready</h2>
-            <p className="text-slate-500 text-sm">
-                Interface dynamically synchronized with user interaction telemetry.
-            </p>
-        </div>
-    );
-};"""
+def get_static_fallback(page_name: str = "") -> str:
+    """
+    Get immediate static fallback React component for a given page name.
+    """
+    class DummyMsg:
+        def __init__(self, content):
+            self.content = content
+
+    return _get_fallback_component([DummyMsg(page_name)])
 
 
 class GroqService:
     """
-    Handles communication with Groq LLM with multi-model fallback resilience.
+    Handles communication with Groq LLM with multi-model AND multi-key fallback resilience.
+    Tries every (model, api_key) combination before falling back to static templates.
     """
 
     def __init__(self):
         self.models = [MODEL_NAME] + [m for m in FALLBACK_MODELS if m != MODEL_NAME]
+        self.api_keys = GROQ_API_KEYS  # list of 1-4 keys
         self.active_model_name = self.models[0]
-        self.llm = self._create_llm(self.active_model_name)
+        self.active_key_index = 0
+        self.llm = self._create_llm(self.models[0], self.api_keys[0])
         self.is_fallback_active = False
 
-    def _create_llm(self, model_name: str) -> ChatGroq:
+    def get_static_fallback(self, page_name: str = "") -> str:
+        """
+        Get immediate static fallback React component for a given page name.
+        """
+        return get_static_fallback(page_name)
+
+    def _create_llm(self, model_name: str, api_key: str) -> ChatGroq:
         return ChatGroq(
             model=model_name,
-            api_key=GROQ_API_KEY,
+            api_key=api_key,
             temperature=TEMPERATURE,
             max_tokens=MAX_TOKENS,
         )
 
     def generate(self, messages: List[Any]) -> str:
         """
-        Generate a complete React component with multi-model retry fallback.
+        Generate a complete React component — tries every (model × api_key) combination.
         """
         if not messages:
             raise ValueError("Messages cannot be empty.")
@@ -277,33 +285,33 @@ class GroqService:
         start_time = time.perf_counter()
 
         for model in self.models:
-            try:
-                if self.active_model_name != model:
-                    self.active_model_name = model
-                    self.llm = self._create_llm(model)
+            for key_idx, api_key in enumerate(self.api_keys):
+                try:
+                    llm = self._create_llm(model, api_key)
+                    logger.info(f"Invoking Groq model: {model} (key #{key_idx + 1})")
+                    response = llm.invoke(messages)
 
-                logger.info(f"Invoking Groq model: {model}")
-                response = self.llm.invoke(messages)
+                    if response is None or not hasattr(response, "content"):
+                        raise RuntimeError("Empty response received from Groq.")
 
-                if response is None or not hasattr(response, "content"):
-                    raise RuntimeError("Empty response received from Groq.")
+                    content = response.content.strip()
+                    elapsed = round(time.perf_counter() - start_time, 2)
+                    logger.info(f"Groq generation ({model}, key #{key_idx + 1}) completed in {elapsed}s.")
+                    self.is_fallback_active = False
+                    return content
 
-                content = response.content.strip()
-                elapsed = round(time.perf_counter() - start_time, 2)
-                logger.info(f"Groq generation ({model}) completed in {elapsed}s.")
-                return content
+                except Exception as e:
+                    logger.warning(
+                        f"Groq generation with model {model} (key #{key_idx + 1}) failed: {e}. Trying next..."
+                    )
 
-            except Exception as e:
-                logger.warning(
-                    f"Groq generation with model {model} failed: {e}. Trying next fallback model..."
-                )
-
-        logger.error("All Groq models failed/rate-limited. Switching to Smart Fallback Component.")
+        logger.error("All Groq models/keys exhausted. Switching to Smart Fallback Component.")
+        self.is_fallback_active = True
         return _get_fallback_component(messages)
 
     def stream_generate(self, messages: List[Any]) -> Generator[str, None, None]:
         """
-        Stream React component tokens from Groq with multi-model retry fallback.
+        Stream React component tokens — tries every (model × api_key) combination.
         """
         if not messages:
             raise ValueError("Messages cannot be empty.")
@@ -311,40 +319,37 @@ class GroqService:
         start_time = time.perf_counter()
 
         for model in self.models:
-            try:
-                if self.active_model_name != model:
-                    self.active_model_name = model
-                    self.llm = self._create_llm(model)
+            for key_idx, api_key in enumerate(self.api_keys):
+                try:
+                    llm = self._create_llm(model, api_key)
+                    logger.info(f"Streaming from Groq model: {model} (key #{key_idx + 1})")
+                    full_response = ""
+                    received_chunks = False
 
-                logger.info(f"Streaming from Groq model: {model}")
-                full_response = ""
-                received_chunks = False
+                    for chunk in llm.stream(messages):
+                        if not chunk:
+                            continue
+                        token = getattr(chunk, "content", "")
+                        if not token:
+                            continue
+                        received_chunks = True
+                        full_response += token
+                        yield token
 
-                for chunk in self.llm.stream(messages):
-                    if not chunk:
-                        continue
-                    token = getattr(chunk, "content", "")
-                    if not token:
-                        continue
-                    received_chunks = True
-                    full_response += token
-                    yield token
+                    if received_chunks:
+                        elapsed = round(time.perf_counter() - start_time, 2)
+                        logger.info(f"Groq streaming ({model}, key #{key_idx + 1}) completed in {elapsed}s.")
+                        self.is_fallback_active = False
+                        return
 
-                if received_chunks:
-                    elapsed = round(time.perf_counter() - start_time, 2)
-                    logger.info(f"Groq streaming ({model}) completed in {elapsed}s.")
-                    self.is_fallback_active = False
-                    return
+                except Exception as e:
+                    logger.warning(
+                        f"Groq streaming with model {model} (key #{key_idx + 1}) failed: {e}. Trying next..."
+                    )
 
-            except Exception as e:
-                logger.warning(
-                    f"Groq streaming with model {model} failed: {e}. Trying next fallback model..."
-                )
-
-        logger.error("All Groq models failed/rate-limited. Streaming Smart Fallback Component.")
+        logger.error("All Groq models/keys exhausted. Streaming Smart Fallback Component.")
         self.is_fallback_active = True
         fallback_code = _get_fallback_component(messages)
-        # Yield fallback code in small chunks to simulate streaming
         chunk_size = 30
         for i in range(0, len(fallback_code), chunk_size):
             yield fallback_code[i : i + chunk_size]

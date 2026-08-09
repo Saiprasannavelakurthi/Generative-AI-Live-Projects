@@ -103,6 +103,7 @@ async def generate_component_task(
     session_id: str,
     current_page: str,
     gen_kwargs: dict,
+    decision: str = "",
 ):
     """
     Streams Groq tokens to the client in real time and sends a
@@ -113,12 +114,15 @@ async def generate_component_task(
     start_time = time.perf_counter()
 
     try:
-        # Notify frontend: generation starting
+        # Notify frontend: generation starting with instant baseline UI
+        baseline_code = groq_service.get_static_fallback(current_page)
         await manager.send_json(
             websocket,
             {
                 "type": "generation_start",
                 "page_name": current_page,
+                "decision": decision,
+                "baseline_code": baseline_code,
             },
         )
 
@@ -171,19 +175,6 @@ async def generate_component_task(
 
         full_code = clean_code(full_code)
 
-        # Wrap bare JSX that has no Component function
-        if not (
-            re.search(r"const\s+Component\s*=", full_code)
-            or re.search(r"function\s+Component\s*\(", full_code)
-        ):
-            full_code = (
-                "const Component = () => {\n"
-                "    return (\n"
-                f"{full_code}\n"
-                "    );\n"
-                "};"
-            )
-
         status, message = validate_component(full_code)
 
         if not status:
@@ -231,6 +222,7 @@ async def generate_component_task(
             "page_name": current_page,
             "session_id": session_id,
             "is_fallback": getattr(groq_service, "is_fallback_active", False),
+            "decision": decision,
             "preserved_data": True,
             "context_version": 3,
         }
@@ -389,6 +381,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     session_id=session_id,
                     current_page=current_page,
                     gen_kwargs=gen_kwargs,
+                    decision=current_decision,
                 )
             )
 

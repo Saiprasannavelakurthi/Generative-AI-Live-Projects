@@ -19,6 +19,14 @@ if not GROQ_API_KEY:
         "GROQ_API_KEY not found. Please add it to your .env file."
     )
 
+# Collect all API keys for rotation (add GROQ_API_KEY_2, _3, _4 in .env for extra quota)
+_extra_keys = [
+    os.getenv("GROQ_API_KEY_2", ""),
+    os.getenv("GROQ_API_KEY_3", ""),
+    os.getenv("GROQ_API_KEY_4", ""),
+]
+GROQ_API_KEYS: list[str] = [GROQ_API_KEY] + [k for k in _extra_keys if k.strip()]
+
 # ==========================================================
 # AI Model Configuration
 # ==========================================================
@@ -28,9 +36,17 @@ MODEL_NAME = os.getenv(
     "llama-3.1-8b-instant",
 )
 
+# All free Groq models ordered by speed (fastest first).
+# The service will try each one and skip any that are rate-limited.
 FALLBACK_MODELS = [
-    "llama-3.1-8b-instant",
-    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",       # 750k TPD  — fast, compact
+    "gemma2-9b-it",               # separate Google quota
+    "gemma-7b-it",                # separate Google quota
+    "llama-3.3-70b-versatile",    # 100k TPD  — high quality
+    "llama3-8b-8192",             # 500k TPD  — alias
+    "llama3-70b-8192",            # 6k RPD but separate bucket
+    "mixtral-8x7b-32768",         # 500k TPD  — good for code
+    "llama-3.1-70b-versatile",    # 100k TPD  — alias
 ]
 
 TEMPERATURE = float(

@@ -2,6 +2,34 @@ import re
 from services.babel_service import validate_with_babel
 
 
+def ensure_component_wrapper(code: str) -> str:
+    """
+    Ensures that the code defines a root React component function named Component.
+    If it defines a component with another name (e.g., LoginUI, DashboardUI), renames it to Component.
+    If it is bare JSX with no component declaration, wraps it in const Component = () => { return ( ... ); };.
+    """
+    if not code or not code.strip():
+        return code
+
+    code = code.strip()
+
+    # Already has Component definition
+    if (
+        re.search(r"const\s+Component\s*=", code)
+        or re.search(r"function\s+Component\s*\(", code)
+    ):
+        return code
+
+    # Check if another component function/const was defined (e.g. const LoginCard = ...)
+    match = re.search(r"(?:const|function)\s+([A-Z][a-zA-Z0-9_]*)\s*(?:=|\()", code)
+    if match and match.group(1) not in ("React", "Fragment", "Component"):
+        root_name = match.group(1)
+        return re.sub(rf"\b{root_name}\b", "Component", code)
+
+    # Bare JSX snippet — wrap in Component
+    return f"const Component = () => {{\n    return (\n{code}\n    );\n}};"
+
+
 def clean_code(code: str) -> str:
     """
     Clean raw LLM generated code by stripping Markdown code block wrappers,
@@ -37,6 +65,9 @@ def clean_code(code: str) -> str:
     # Fix unterminated or long SVG path strings
     cleaned = re.sub(r'd="[^"\n]*$', r'd="M12 4v16m8-8H4"', cleaned, flags=re.MULTILINE)
     cleaned = re.sub(r'd="([^"]{100,})"', r'd="M12 4v16m8-8H4"', cleaned)
+
+    # Normalize component wrapper
+    cleaned = ensure_component_wrapper(cleaned)
 
     return cleaned.strip()
 
@@ -117,26 +148,6 @@ def validate_component(code: str) -> tuple[bool, str]:
         return (
             False,
             "Error: Export statements are not allowed.",
-        )
-
-    # ==========================================================
-    # Balanced Braces
-    # ==========================================================
-
-    if code.count("{") != code.count("}"):
-        return (
-            False,
-            "Error: Unbalanced braces.",
-        )
-
-    # ==========================================================
-    # Balanced Parentheses
-    # ==========================================================
-
-    if code.count("(") != code.count(")"):
-        return (
-            False,
-            "Error: Unbalanced parentheses.",
         )
 
     # ==========================================================

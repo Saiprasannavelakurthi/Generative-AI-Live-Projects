@@ -92,7 +92,7 @@ def test_unbalanced_braces():
     status, message = validate_component(code)
 
     assert status is False
-    assert "braces" in message.lower()
+    assert "braces" in message.lower() or "babel" in message.lower()
 
 
 def test_unbalanced_parentheses():
@@ -101,13 +101,13 @@ def test_unbalanced_parentheses():
     const Component = () => {
         return (
             <div>Hello</div>;
-    };
+        };
     """
 
     status, message = validate_component(code)
 
     assert status is False
-    assert "parentheses" in message.lower()
+    assert "parentheses" in message.lower() or "babel" in message.lower()
 
 
 def test_valid_component():

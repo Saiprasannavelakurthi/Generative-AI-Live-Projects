@@ -27,7 +27,7 @@ def test_groq_service_fallback_on_error():
     mock_response.content = "const Component = () => <div>Success Fallback</div>;"
     mock_llm2.invoke.return_value = mock_response
 
-    def mock_create(model_name):
+    def mock_create(model_name, api_key=None):
         if "instant" in model_name:
             return mock_llm1
         return mock_llm2
@@ -35,3 +35,11 @@ def test_groq_service_fallback_on_error():
     with patch.object(service, "_create_llm", side_effect=mock_create):
         res = service.generate([MagicMock(content="test prompt")])
         assert "Success Fallback" in res
+
+
+def test_get_static_fallback():
+    service = GroqService()
+    code = service.get_static_fallback("dashboard")
+    assert "const Component" in code
+    assert "Dashboard" in code
+

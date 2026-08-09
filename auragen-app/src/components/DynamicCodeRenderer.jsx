@@ -36,6 +36,9 @@ export default function DynamicCodeRenderer({
   pollIntervalMs = 0,
   scope = {},
   className = "",
+  decision = "",
+  isFallback = false,
+  generationTime = null,
 }) {
 
   const [status, setStatus] = useState("idle");
@@ -71,6 +74,10 @@ export default function DynamicCodeRenderer({
   // Boolean state mirroring whether lastGoodRef has a value.
   // Used during render to avoid accessing refs directly.
   const [hasLastGood, setHasLastGood] = useState(false);
+
+  // Render timing: measures ms from code-change to successful compile+render
+  const [renderTimeMs, setRenderTimeMs] = useState(null);
+  const codeArrivalRef = useRef(null);
 
   // Expose all React hooks and safe context objects that generated components
   // may use without importing (since imports are forbidden).
@@ -184,6 +191,7 @@ export default function DynamicCodeRenderer({
 
         setStatus("loading");
         setErrorMessage(null);
+        setRenderTimeMs(null);
 
         setRawCode(source);
         setEditableCode(source);
@@ -219,6 +227,14 @@ export default function DynamicCodeRenderer({
         setStatus("ready");
 
         setDegraded(false);
+
+        // Capture render time (code arrival → compile done)
+        if (codeArrivalRef.current !== null) {
+          const elapsed = Math.round(performance.now() - codeArrivalRef.current);
+          setRenderTimeMs(elapsed);
+          codeArrivalRef.current = null;
+        }
+
       } catch (error) {
         console.error("[AuraGen] Compilation error:", error);
 
@@ -271,6 +287,10 @@ export default function DynamicCodeRenderer({
   // a separate effect was causing double-compilation.
   //
   useEffect(() => {
+    // Stamp arrival time for render-time measurement (only ref writes — no setState here)
+    if (initialCode && initialCode.trim()) {
+      codeArrivalRef.current = performance.now();
+    }
     // The build() function triggers async state updates as part of the
     // intentional compilation pipeline. This is not a cascading render issue —
     // it is the designed behavior for a dynamic code renderer.
@@ -318,7 +338,7 @@ export default function DynamicCodeRenderer({
     if (status === "loading") {
       return (
         <div className="py-12 text-center text-slate-500">
-          ⬇ Downloading source...
+          ⏳ Downloading source...
         </div>
       );
     }
@@ -326,14 +346,14 @@ export default function DynamicCodeRenderer({
     if (status === "compiling") {
       return (
         <div className="py-12 text-center text-slate-500">
-          ⚙ Compiling React component...
+          ⚙️ Compiling React component...
         </div>
       );
     }
 
     return (
       <div className="py-12 text-center text-slate-400">
-        💤 Waiting for generated UI...
+        🧠 Waiting for generated UI...
       </div>
     );
   };
@@ -345,6 +365,7 @@ export default function DynamicCodeRenderer({
       ============================ */}
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        {/* Left: Status + degraded badge */}
         <div className="flex items-center gap-3">
           <StatusBadge
             status={
@@ -361,6 +382,50 @@ export default function DynamicCodeRenderer({
           )}
         </div>
 
+        {/* Center: UI Type + timing badges */}
+        <div className="flex-1 flex flex-wrap items-center justify-center gap-2">
+          {(status === "compiling" || status === "loading") ? (
+            <span className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-4 py-1.5 text-xs font-semibold text-indigo-700">
+              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-indigo-500"></span>
+              Generating UI…
+            </span>
+          ) : isFallback ? (
+            <span className="inline-flex items-center gap-2 rounded-full border border-amber-300 bg-amber-50 px-4 py-1.5 text-xs font-semibold text-amber-800">
+              <span className="inline-block h-2 w-2 rounded-full bg-amber-500"></span>
+              ⚠️ Groq Quota — Fallback Active
+            </span>
+          ) : decision ? (
+            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-xs font-semibold text-emerald-700">
+              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500"></span>
+              🖼 {decision
+                .split('_')
+                .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                .join(' ')}
+            </span>
+          ) : null}
+
+          {/* Backend generation time */}
+          {generationTime != null && (
+            <span
+              title="Backend LLM generation time"
+              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600"
+            >
+              ⚡ Gen: {generationTime}s
+            </span>
+          )}
+
+          {/* Frontend render time */}
+          {renderTimeMs != null && (
+            <span
+              title="Frontend compile + render time"
+              className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700"
+            >
+              🎨 Render: {renderTimeMs}ms
+            </span>
+          )}
+        </div>
+
+        {/* Right: Reset + Reload buttons */}
         <div className="flex items-center gap-2">
           {defaultCode !== null && (
             <button

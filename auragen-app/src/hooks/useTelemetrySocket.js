@@ -10,6 +10,9 @@ const DEFAULTS = {
   reconnectMaxDelayMs: 15000,
 };
 
+// Minimum gap (ms) between successive UI swaps shown to the user
+const UI_UPDATE_THROTTLE_MS = 3000;
+
 // ==========================================================
 // Helpers
 // ==========================================================
@@ -87,6 +90,12 @@ export function useTelemetrySocket(options = {}) {
   const [isFallback, setIsFallback] =
     useState(false);
 
+  const [decision, setDecision] =
+    useState("");
+
+  const [generationTime, setGenerationTime] =
+    useState(null);
+
   // Stable ref so onmessage closure always has latest setter (avoids stale closure / HMR issues)
   const setIsFallbackRef = useRef(setIsFallback);
   useEffect(() => { setIsFallbackRef.current = setIsFallback; }, [setIsFallback]);
@@ -120,6 +129,11 @@ export function useTelemetrySocket(options = {}) {
   const isUnmountedRef = useRef(false);
 
   const cognitiveScoreRef = useRef(0);
+  const activeGenPageRef = useRef("");
+
+  // Throttle — tracks when we last swapped the visible UI (ms timestamp)
+  const lastUiUpdateRef = useRef(0);
+  const uiUpdateTimerRef = useRef(null);
 
   const wsUrlRef = useRef(options.wsUrl ?? DEFAULTS.wsUrl);
   const reconnectRef = useRef(options.reconnect ?? DEFAULTS.reconnect);
@@ -267,22 +281,70 @@ export function useTelemetrySocket(options = {}) {
             break;
 
           case "generation_start":
+            if (message.page_name && message.page_name !== pageNameRef.current) {
+              console.log("[AuraGen] Ignoring generation_start for old page:", message.page_name);
+              break;
+            }
+            activeGenPageRef.current = message.page_name || pageNameRef.current;
             console.log("[AuraGen] Generation start for page:", message.page_name);
             setIsGenerating(true);
+            setGenerationTime(null);
+            if (message.decision) setDecision(message.decision);
+            if (message.baseline_code) {
+              const now = Date.now();
+              const elapsed = now - lastUiUpdateRef.current;
+              if (elapsed >= UI_UPDATE_THROTTLE_MS) {
+                lastUiUpdateRef.current = now;
+                setGeneratedCode(message.baseline_code);
+              } else {
+                const delay = UI_UPDATE_THROTTLE_MS - elapsed;
+                clearTimeout(uiUpdateTimerRef.current);
+                uiUpdateTimerRef.current = setTimeout(() => {
+                  lastUiUpdateRef.current = Date.now();
+                  setGeneratedCode(message.baseline_code);
+                }, delay);
+              }
+            }
             tokenStreamBufferRef.current = "";
             break;
 
           case "token":
+            if (activeGenPageRef.current && activeGenPageRef.current !== pageNameRef.current) {
+              break;
+            }
             tokenStreamBufferRef.current += (message.content ?? "");
             break;
 
           case "complete":
-            console.log("[AuraGen] Received COMPLETE");
+            if (message.page_name && message.page_name !== pageNameRef.current) {
+              console.log("[AuraGen] Ignoring complete message for old page:", message.page_name);
+              break;
+            }
+            console.log("[AuraGen] Received COMPLETE for page:", message.page_name);
             setIsGenerating(false);
             if (typeof setIsFallbackRef.current === "function") {
               setIsFallbackRef.current(Boolean(message.is_fallback));
             }
-            setGeneratedCode(message.generated_code || tokenStreamBufferRef.current);
+            if (message.decision) setDecision(message.decision);
+            if (message.generation_time !== undefined) {
+              setGenerationTime(message.generation_time);
+            }
+            {
+              const finalCode = message.generated_code || tokenStreamBufferRef.current;
+              const now = Date.now();
+              const elapsed = now - lastUiUpdateRef.current;
+              if (elapsed >= UI_UPDATE_THROTTLE_MS) {
+                lastUiUpdateRef.current = now;
+                setGeneratedCode(finalCode);
+              } else {
+                const delay = UI_UPDATE_THROTTLE_MS - elapsed;
+                clearTimeout(uiUpdateTimerRef.current);
+                uiUpdateTimerRef.current = setTimeout(() => {
+                  lastUiUpdateRef.current = Date.now();
+                  setGeneratedCode(finalCode);
+                }, delay);
+              }
+            }
             break;
 
           case "error":
@@ -395,6 +457,8 @@ export function useTelemetrySocket(options = {}) {
 
   const clearGeneratedCode = useCallback(() => {
     setGeneratedCode("");
+    setDecision("");
+    setGenerationTime(null);
   }, []);
 
   return {
@@ -419,6 +483,10 @@ export function useTelemetrySocket(options = {}) {
     highLoad,
 
     isFallback,
+
+    decision,
+
+    generationTime,
   };
 }
 
