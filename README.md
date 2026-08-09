@@ -40,7 +40,7 @@ Unlike traditional UIs that are static, AuraGen **watches how you interact** wit
 | **Non-Blocking Generation** | `asyncio.create_task` ensures the WebSocket receive loop never blocks on LLM calls |
 | **Cognitive Engine** | Composite score from velocity variance, hesitation, click frequency, and field focus |
 | **Decision Engine** | Maps page + cognitive load → specific prompt strategy (rich / simple / wizard / minimal) |
-| **Multi-Model Fallback** | Cascades across 2 active Groq models: `llama-3.1-8b-instant` → `llama-3.3-70b-versatile` |
+| **Multi-Model Fallback** | Cascades across Groq models and multi-key rotation (`GROQ_API_KEY_1..4`), falling back to contextual smart templates |
 | **Smart Fallback Components** | Contextual JSX templates per page type when all LLMs are rate-limited |
 | **LangChain Prompt Templates** | Structured system + user prompt engineering per UI type |
 | **JSX Validation** | Brace balance + component name checks before delivery |
@@ -302,7 +302,7 @@ cd Auragen_backend
 python -m pytest
 ```
 
-**56 tests** across 10 test files:
+**57 tests** across 10 test files:
 
 | Test File | What It Covers |
 |---|---|
